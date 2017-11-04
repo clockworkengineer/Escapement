@@ -1,0 +1,363 @@
+#include "HOST.hpp"
+/*
+ * File:   Escapement.cpp
+ * 
+ * Author: Robert Tizzard
+ * 
+ * Created on October 24, 2017, 2:33 PM
+ *
+ * Copyright 2017.
+ *
+ */
+
+//
+// Program: Escapement
+//
+// Description: Simple FTP program that takes a local directory and keeps it 
+// sycnhronized with a remote server directory. Note: Im sure the sync can be done
+// in one pass (come back and look at later).
+//
+// Dependencies: C11++, Classes (CFTP, CSocket), Boost C++ Libraries.
+//
+// Escapement
+// Program Options:
+//   --help                 Print help messages
+//   -c [ --config ] arg    Config File Name
+//   -s [ --server ] arg    FTP Server
+//   -p [ --port ] arg      FTP Server port
+//   -u [ --user ] arg      Account username
+//   -p [ --password ] arg  User password
+//   -r [ --remote ] arg    Remote server directory to restore
+//   -l [ --local ] arg     Local directory to use as base for restore
+//
+
+// =============
+// INCLUDE FILES
+// =============
+
+//
+// C++ STL
+//
+
+#include <iostream>
+#include <unordered_map>
+
+//
+// Antik Classes
+//
+
+#include "CFTP.hpp"
+#include "FTPUtil.hpp"
+
+using namespace Antik::FTP;
+
+//
+// Boost program options  & file system library
+//
+
+#include <boost/program_options.hpp>  
+#include <boost/filesystem.hpp>
+
+namespace po = boost::program_options;
+namespace fs = boost::filesystem;
+
+// ======================
+// LOCAL TYES/DEFINITIONS
+// ======================
+
+// Command line parameter data
+
+struct ParamArgData {
+    std::string userName;        // FTP account user name
+    std::string userPassword;    // FTP account user name password
+    std::string serverName;      // FTP server
+    std::string serverPort;      // FTP server port
+    std::string remoteDirectory; // FTP remote directory for sync
+    std::string localDirectory;  // Local directory for sync with server
+    int pollTime { 0 };          // Poll time in minutes.
+    std::string configFileName;  // Configuration file name
+};
+
+typedef std::unordered_map<std::string, CFTP::DateTime> FileInfoMap;  
+
+// ===============
+// LOCAL FUNCTIONS
+// ===============
+
+//
+// Exit with error message/status
+//
+
+void exitWithError(std::string errMsg) {
+
+    // Display error and exit.
+
+    std::cout.flush();
+    std::cerr << errMsg << std::endl;
+    exit(EXIT_FAILURE);
+
+}
+
+//
+// Add options common to both command line and config file
+//
+
+void addCommonOptions(po::options_description& commonOptions, ParamArgData& argData) {
+
+    commonOptions.add_options()
+            ("server,s", po::value<std::string>(&argData.serverName)->required(), "FTP Server name")
+            ("port,o", po::value<std::string>(&argData.serverPort)->required(), "FTP Server port")
+            ("user,u", po::value<std::string>(&argData.userName)->required(), "Account username")
+            ("password,p", po::value<std::string>(&argData.userPassword)->required(), "User password")
+            ("remote,r", po::value<std::string>(&argData.remoteDirectory)->required(), "Remote directory to restore")
+            ("local,l", po::value<std::string>(&argData.localDirectory)->required(), "Local directory as base for restore")
+            ("polltime", po::value<int>(&argData.pollTime), "Server poll time in minutes");
+
+}
+
+//
+// Read in and process command line arguments using boost.
+//
+
+void procCmdLine(int argc, char** argv, ParamArgData &argData) {
+
+    // Define and parse the program options
+
+    po::options_description commandLine("Program Options");
+    commandLine.add_options()
+            ("help", "Print help messages")
+            ("config,c", po::value<std::string>(&argData.configFileName), "Config File Name");
+
+    addCommonOptions(commandLine, argData);
+
+    po::options_description configFile("Config Files Options");
+
+    addCommonOptions(configFile, argData);
+
+    po::variables_map vm;
+
+    try {
+
+        // Process arguments
+
+        po::store(po::parse_command_line(argc, argv, commandLine), vm);
+
+        // Display options and exit with success
+
+        if (vm.count("help")) {
+            std::cout << "Escapement" << std::endl << commandLine << std::endl;
+            exit(EXIT_SUCCESS);
+        }
+
+        if (vm.count("config")) {
+            if (fs::exists(vm["config"].as<std::string>().c_str())) {
+                std::ifstream ifs{vm["config"].as<std::string>().c_str()};
+                if (ifs) {
+                    po::store(po::parse_config_file(ifs, configFile), vm);
+                }
+            } else {
+                throw po::error("Specified config file does not exist.");
+            }
+        }
+
+        po::notify(vm);
+
+        if (argData.localDirectory.back() != '/')argData.localDirectory.push_back('/');
+
+    } catch (po::error& e) {
+        std::cerr << "Escapement Error: " << e.what() << std::endl << std::endl;
+        std::cerr << commandLine << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+}
+
+//
+// Convert local file path to remote server path
+//
+
+static inline std::string localFileToRemote(ParamArgData &argData, const std::string &localFilePath) {
+    return (argData.remoteDirectory + localFilePath.substr(argData.localDirectory.rfind('/')));
+}
+
+//
+// Convert remote server file path to local path
+//
+
+static inline std::string remoteFileToLocal(ParamArgData &argData, const std::string &remoteFilePath) {
+    return (argData.localDirectory + remoteFilePath.substr(argData.remoteDirectory.size() + 1));
+}
+
+//
+// Load vector containing local and remote files to synchronise
+//
+
+static inline void loadFilesToSynchronize(CFTP &ftpServer, ParamArgData &argData, std::vector<std::string> &remoteFiles, std::vector<std::string> &localFiles) {
+
+    // Get local and remote file lists
+
+    listRemoteRecursive(ftpServer, argData.remoteDirectory, remoteFiles);
+
+    if (remoteFiles.empty()) {
+        std::cout << "*** Remote server directory empty ***" << std::endl;
+    }
+
+    listLocalRecursive(argData.localDirectory, localFiles);
+
+    if (localFiles.empty()) {
+        std::cout << "*** Local directory empty ***" << std::endl;
+    }
+
+}
+
+// ============================
+// ===== MAIN ENTRY POint =====
+// ============================
+
+int main(int argc, char** argv) {
+
+    try {
+
+        ParamArgData argData;
+        CFTP ftpServer;
+        std::vector<std::string> localFiles;
+        std::vector<std::string> remoteFiles;
+
+        // Read in command line parameters and process
+
+        procCmdLine(argc, argv, argData);
+
+        std::cout << "Server [" << argData.serverName << "]" << " Port [" << argData.serverPort << "]" << " User [" << argData.userName << "]";
+        std::cout << " Remote Directory [" << argData.remoteDirectory << "]" << " Local Directory [" << argData.localDirectory << "]\n" << std::endl;
+
+        // Set server and port
+
+        ftpServer.setServerAndPort(argData.serverName, argData.serverPort);
+
+        // Set FTP account user name and password
+
+        ftpServer.setUserAndPassword(argData.userName, argData.userPassword);
+
+        // Enable SSL
+
+        ftpServer.setSslEnabled(true);
+
+        do {
+
+            // Connect
+
+            if (ftpServer.connect() != 230) {
+                throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
+            }
+
+            // Create remote directory
+
+            if (!ftpServer.fileExists(argData.remoteDirectory)) {
+                makeRemotePath(ftpServer, argData.remoteDirectory);
+                if (!ftpServer.fileExists(argData.remoteDirectory)) {
+                    throw CFTP::Exception("Remote FTP server directory " + argData.remoteDirectory + " could not created.");
+                }
+            }
+
+            ftpServer.changeWorkingDirectory(argData.remoteDirectory);
+            ftpServer.getCurrentWoringDirectory(argData.remoteDirectory);
+
+            // Get local and remote file lists
+
+            loadFilesToSynchronize(ftpServer, argData, remoteFiles, localFiles);
+
+            // PASS 1) Copy new files to server
+
+            std::cout << "*** Transferring any new files to server ***" << std::endl;
+
+            std::vector<std::string> newFiles;
+            std::vector<std::string> newFilesTransfered;
+
+            for (auto file : localFiles) {
+                if (find(remoteFiles.begin(), remoteFiles.end(), localFileToRemote(argData, file)) == remoteFiles.end()) {
+                    newFiles.push_back(file);
+                }
+            }
+
+            if (!newFiles.empty()) {
+                newFilesTransfered = putFiles(ftpServer, argData.localDirectory, newFiles);
+                std::cout << "Number of new files transfered [" << newFilesTransfered.size() << "]" << std::endl;
+                std::copy(newFilesTransfered.begin(), newFilesTransfered.end(), std::back_inserter(remoteFiles));
+            }
+            
+ 
+            // PASS 2) Remove any deleted local files from server
+
+            std::cout << "*** Removing any deleted local files from server ***" << std::endl;
+
+            for (auto file : remoteFiles) {
+                if (find(localFiles.begin(), localFiles.end(), remoteFileToLocal(argData, file)) == localFiles.end()) {
+                    if (ftpServer.deleteFile(file) == 250) {
+                        std::cout << "File [" << file << " ] removed from server." << std::endl;
+                    } else if (ftpServer.removeDirectory(file) == 250) {
+                        std::cout << "Directory [" << file << " ] removed from server." << std::endl;
+                    } else {
+                        std::cerr << "File [" << file << " ] could not be removed from server." << std::endl;
+                    }
+                }
+            }
+
+            // PASS 3) Copy any updated local files to remote server. Note: PASS 2 may
+            // have deleted some remote files but if the get modified date/time fails
+            // it is ignored and not added to remoteFileModifiedTimes.
+
+            std::cout << "*** Copying updated local files to server ***" << std::endl;
+
+            // Fill out remote file name, date/time modified map.
+
+            std::unordered_map<std::string, CFTP::DateTime> remoteFileModifiedTimes;
+
+            for (auto file : remoteFiles) {
+                CFTP::DateTime modifiedDateTime;
+                if (ftpServer.getModifiedDateTime(file, modifiedDateTime) == 213) {
+                    remoteFileModifiedTimes[file] = modifiedDateTime;
+                }
+            }
+
+            // Copy updated files to server
+
+            for (auto file : localFiles) {
+                if (fs::is_regular_file(file)) {
+                    std::time_t localModifiedTime = fs::last_write_time(file);
+                    if (remoteFileModifiedTimes[localFileToRemote(argData, file)] <
+                            static_cast<CFTP::DateTime> (std::localtime(&localModifiedTime))) {
+                        std::cout << "Server file " << localFileToRemote(argData, file) << " out of date." << std::endl;
+                        if (ftpServer.putFile(localFileToRemote(argData, file), file) == 226) {
+                            std::cout << "File [" << file << " ] copied to server." << std::endl;
+                        } else {
+                            std::cerr << "File [" << file << " ] not copied to server." << std::endl;
+                        }
+                    }
+                }
+            }
+
+            // Disconnect 
+
+            ftpServer.disconnect();
+
+            std::cout << "*** Files synchronized with server ***" << std::endl;
+
+            // Wait poll interval (pollTime == 0 then one pass)
+
+            std::this_thread::sleep_for(std::chrono::minutes(argData.pollTime));
+
+        } while (argData.pollTime);
+
+        //
+        // Catch any errors
+        //    
+
+    } catch (CFTP::Exception &e) {
+        exitWithError(e.what());
+    } catch (std::exception &e) {
+        exitWithError(std::string("Standard exception occured: [") + e.what() + "]");
+    }
+
+    exit(EXIT_SUCCESS);
+
+}
