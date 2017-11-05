@@ -163,7 +163,7 @@ void procCmdLine(int argc, char** argv, ParamArgData &argData) {
         po::notify(vm);
 
         if (argData.localDirectory.back() != '/')argData.localDirectory.push_back('/');
-
+        
     } catch (po::error& e) {
         std::cerr << "Escapement Error: " << e.what() << std::endl << std::endl;
         std::cerr << commandLine << std::endl;
@@ -185,25 +185,56 @@ static inline std::string localFileToRemote(ParamArgData &argData, const std::st
 //
 
 static inline std::string remoteFileToLocal(ParamArgData &argData, const std::string &remoteFilePath) {
-    return (argData.localDirectory + remoteFilePath.substr(argData.remoteDirectory.size() + 1));
+    return (argData.localDirectory + remoteFilePath.substr(argData.remoteDirectory.size()+1));
+}
+
+//
+// Get all remote file last modified date/time and return as FileInfoMap
+//
+
+static inline FileInfoMap getRemoteFileListDateTime(CFTP &ftpServer, const std::vector<std::string> &fileList) {
+
+    FileInfoMap fileInfoMap;
+    
+    for (auto file : fileList) {
+        CFTP::DateTime modifiedDateTime;
+        ftpServer.getModifiedDateTime(file, modifiedDateTime);
+        fileInfoMap[file] = modifiedDateTime; 
+    }
+    
+    return(std::move(fileInfoMap));
+    
 }
 
 //
 // Load vector containing local and remote files to synchronise
 //
 
-static inline void loadFilesToSynchronize(CFTP &ftpServer, ParamArgData &argData, std::vector<std::string> &remoteFiles, std::vector<std::string> &localFiles) {
+static inline void loadFilesToSynchronize(CFTP &ftpServer, ParamArgData &argData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
+    std::vector<std::string> fileList;
+    
     // Get local and remote file lists
 
-    listRemoteRecursive(ftpServer, argData.remoteDirectory, remoteFiles);
+    listRemoteRecursive(ftpServer, argData.remoteDirectory, fileList);
+
+    remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
 
     if (remoteFiles.empty()) {
         std::cout << "*** Remote server directory empty ***" << std::endl;
     }
+    
+    listLocalRecursive(argData.localDirectory, fileList);
 
-    listLocalRecursive(argData.localDirectory, localFiles);
-
+    for (auto file : fileList) {
+        if (fs::is_regular_file(file)) {
+            std::time_t localModifiedTime = fs::last_write_time(file);
+            localFiles[file] = CFTP::DateTime(std::localtime(&localModifiedTime));
+        } else if (fs::is_directory(file)) {
+            localFiles[file] = CFTP::DateTime();
+        }
+    }
+      
     if (localFiles.empty()) {
         std::cout << "*** Local directory empty ***" << std::endl;
     }
@@ -220,8 +251,8 @@ int main(int argc, char** argv) {
 
         ParamArgData argData;
         CFTP ftpServer;
-        std::vector<std::string> localFiles;
-        std::vector<std::string> remoteFiles;
+        FileInfoMap localFiles;
+        FileInfoMap remoteFiles;
 
         // Read in command line parameters and process
 
@@ -261,6 +292,8 @@ int main(int argc, char** argv) {
 
             ftpServer.changeWorkingDirectory(argData.remoteDirectory);
             ftpServer.getCurrentWoringDirectory(argData.remoteDirectory);
+            
+            std::cout << "Current Working Direcory [" << argData.remoteDirectory << "]\n" << std::endl;
 
             // Get local and remote file lists
 
@@ -271,33 +304,31 @@ int main(int argc, char** argv) {
             std::cout << "*** Transferring any new files to server ***" << std::endl;
 
             std::vector<std::string> newFiles;
-            std::vector<std::string> newFilesTransfered;
-
-            for (auto file : localFiles) {
-                if (find(remoteFiles.begin(), remoteFiles.end(), localFileToRemote(argData, file)) == remoteFiles.end()) {
-                    newFiles.push_back(file);
+   
+            for (auto &file : localFiles) {
+                if (remoteFiles.find(localFileToRemote(argData, file.first)) == remoteFiles.end()) {
+                    newFiles.push_back( file.first );
                 }
             }
 
             if (!newFiles.empty()) {
-                newFilesTransfered = putFiles(ftpServer, argData.localDirectory, newFiles);
+                FileInfoMap newFilesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, argData.localDirectory, newFiles))};
                 std::cout << "Number of new files transfered [" << newFilesTransfered.size() << "]" << std::endl;
-                std::copy(newFilesTransfered.begin(), newFilesTransfered.end(), std::back_inserter(remoteFiles));
+                remoteFiles.insert(newFilesTransfered.begin(), newFilesTransfered.end());
             }
-            
- 
+
             // PASS 2) Remove any deleted local files from server
 
             std::cout << "*** Removing any deleted local files from server ***" << std::endl;
 
             for (auto file : remoteFiles) {
-                if (find(localFiles.begin(), localFiles.end(), remoteFileToLocal(argData, file)) == localFiles.end()) {
-                    if (ftpServer.deleteFile(file) == 250) {
-                        std::cout << "File [" << file << " ] removed from server." << std::endl;
-                    } else if (ftpServer.removeDirectory(file) == 250) {
-                        std::cout << "Directory [" << file << " ] removed from server." << std::endl;
+                if (localFiles.find(remoteFileToLocal(argData, file.first)) == localFiles.end()) {
+                    if (ftpServer.deleteFile(file.first) == 250) {
+                        std::cout << "File [" << file.first << " ] removed from server." << std::endl;
+                    } else if (ftpServer.removeDirectory(file.first) == 250) {
+                        std::cout << "Directory [" << file.first << " ] removed from server." << std::endl;
                     } else {
-                        std::cerr << "File [" << file << " ] could not be removed from server." << std::endl;
+                        std::cerr << "File [" << file.first << " ] could not be removed from server." << std::endl;
                     }
                 }
             }
@@ -308,29 +339,16 @@ int main(int argc, char** argv) {
 
             std::cout << "*** Copying updated local files to server ***" << std::endl;
 
-            // Fill out remote file name, date/time modified map.
-
-            std::unordered_map<std::string, CFTP::DateTime> remoteFileModifiedTimes;
-
-            for (auto file : remoteFiles) {
-                CFTP::DateTime modifiedDateTime;
-                if (ftpServer.getModifiedDateTime(file, modifiedDateTime) == 213) {
-                    remoteFileModifiedTimes[file] = modifiedDateTime;
-                }
-            }
-
             // Copy updated files to server
 
             for (auto file : localFiles) {
-                if (fs::is_regular_file(file)) {
-                    std::time_t localModifiedTime = fs::last_write_time(file);
-                    if (remoteFileModifiedTimes[localFileToRemote(argData, file)] <
-                            static_cast<CFTP::DateTime> (std::localtime(&localModifiedTime))) {
-                        std::cout << "Server file " << localFileToRemote(argData, file) << " out of date." << std::endl;
-                        if (ftpServer.putFile(localFileToRemote(argData, file), file) == 226) {
-                            std::cout << "File [" << file << " ] copied to server." << std::endl;
+                if (fs::is_regular_file(file.first)) {
+                    if (remoteFiles[localFileToRemote(argData, file.first)] < localFiles[file.first]) {
+                        std::cout << "Server file " << localFileToRemote(argData, file.first) << " out of date." << std::endl;
+                        if (ftpServer.putFile(localFileToRemote(argData, file.first), file.first) == 226) {
+                            std::cout << "File [" << file.first << " ] copied to server." << std::endl;
                         } else {
-                            std::cerr << "File [" << file << " ] not copied to server." << std::endl;
+                            std::cerr << "File [" << file.first << " ] not copied to server." << std::endl;
                         }
                     }
                 }
