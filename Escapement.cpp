@@ -14,10 +14,10 @@
 // Program: Escapement
 //
 // Description: Simple FTP program that takes a local directory and keeps it 
-// sycnhronized with a remote server directory. Note: Im sure the sync can be done
-// in one pass (come back and look at later).
+// synchronised with a remote server directory. To save on FTP requests it can 
+// keep a local JSON file that contains a cache of remote file details.
 //
-// Dependencies: C11++, Classes (CFTP, CSocket), Boost C++ Libraries.
+// Dependencies: C11++, Classes (CFTP, CSocket), Boost C++ Libraries, Lohmann JSON library.
 //
 // Escapement
 // Program Options:
@@ -27,9 +27,11 @@
 //   -p [ --port ] arg      FTP Server port
 //   -u [ --user ] arg      Account username
 //   -p [ --password ] arg  User password
-//   -r [ --remote ] arg    Remote server directory to restore
-//   -l [ --local ] arg     Local directory to use as base for restore
-//
+//   -r [ --remote ] arg    Remote server directory
+//   -l [ --local ] arg     Local directory
+//   -t [ --polltime ] arg  Server poll time in minutes
+//   -c [ --cache ] arg     JSON filename cache
+//   
 
 // =============
 // INCLUDE FILES
@@ -61,6 +63,12 @@ using namespace Antik::FTP;
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
+// Lohmann JSON library
+
+#include "json.hpp"
+
+using json = nlohmann::json;
+
 // ======================
 // LOCAL TYES/DEFINITIONS
 // ======================
@@ -75,6 +83,7 @@ struct ParamArgData {
     std::string remoteDirectory; // FTP remote directory for sync
     std::string localDirectory;  // Local directory for sync with server
     int pollTime { 0 };          // Poll time in minutes.
+    std::string fileCache;       // JSON tile to hold remote/local file info
     std::string configFileName;  // Configuration file name
 };
 
@@ -111,7 +120,8 @@ void addCommonOptions(po::options_description& commonOptions, ParamArgData& argD
             ("password,p", po::value<std::string>(&argData.userPassword)->required(), "User password")
             ("remote,r", po::value<std::string>(&argData.remoteDirectory)->required(), "Remote directory to restore")
             ("local,l", po::value<std::string>(&argData.localDirectory)->required(), "Local directory as base for restore")
-            ("polltime", po::value<int>(&argData.pollTime), "Server poll time in minutes");
+            ("cache,c",  po::value<std::string>(&argData.fileCache), "JSON file cache")
+            ("polltime,t", po::value<int>(&argData.pollTime), "Server poll time in minutes");
 
 }
 
@@ -161,8 +171,6 @@ void procCmdLine(int argc, char** argv, ParamArgData &argData) {
         }
 
         po::notify(vm);
-
-        if (argData.localDirectory.back() != '/')argData.localDirectory.push_back('/');
         
     } catch (po::error& e) {
         std::cerr << "Escapement Error: " << e.what() << std::endl << std::endl;
@@ -177,7 +185,9 @@ void procCmdLine(int argc, char** argv, ParamArgData &argData) {
 //
 
 static inline std::string localFileToRemote(ParamArgData &argData, const std::string &localFilePath) {
-    return (argData.remoteDirectory + localFilePath.substr(argData.localDirectory.rfind('/')));
+    size_t localDirectoryLength = argData.localDirectory.size();
+    if (argData.localDirectory.back() != '/') localDirectoryLength++;
+    return (argData.remoteDirectory + kServerPathSep + localFilePath.substr(localDirectoryLength));
 }
 
 //
@@ -185,7 +195,9 @@ static inline std::string localFileToRemote(ParamArgData &argData, const std::st
 //
 
 static inline std::string remoteFileToLocal(ParamArgData &argData, const std::string &remoteFilePath) {
-    return (argData.localDirectory + remoteFilePath.substr(argData.remoteDirectory.size()+1));
+    size_t remoteDirectoryLength = argData.remoteDirectory.size();
+    if (argData.localDirectory.back() == '/') remoteDirectoryLength++;
+    return (argData.localDirectory + remoteFilePath.substr(remoteDirectoryLength));
 }
 
 //
@@ -207,32 +219,117 @@ static inline FileInfoMap getRemoteFileListDateTime(CFTP &ftpServer, const std::
 }
 
 //
-// Load vector containing local and remote files to synchronise
+// Load cached remote file info list from cache
+//
+
+static inline void loadCachedRemoteFiles(ParamArgData &argData, FileInfoMap &remoteFiles) {
+
+    if (!argData.fileCache.empty()) {
+
+        json fileArray = json::array();
+        json completeJSONFile;
+
+        std::ifstream jsonFileCacheStream(argData.fileCache);
+
+        if (jsonFileCacheStream) {
+
+            jsonFileCacheStream >> completeJSONFile;
+
+            json::iterator findFiles;
+
+            findFiles = completeJSONFile.find("RemoteFiles");
+            if (findFiles != completeJSONFile.end()) {
+                fileArray = findFiles.value();
+                for (auto file : fileArray) {
+                    std::string modifiedDataTime = file["Modified"];
+                    remoteFiles[file["Filename"]] = static_cast<CFTP::DateTime> (modifiedDataTime);
+                }
+            }
+            
+        }
+
+    }
+    
+}
+
+//
+// Save  local and remote information to cache
+//
+
+static inline void saveFilesToCache(ParamArgData &argData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+
+    if (!argData.fileCache.empty()) {
+
+        json fileArray = json::array();
+        json completeJSONFile;
+
+        for (auto file : remoteFiles) {
+            json fileJSON;
+            fileJSON["Filename"] = file.first;
+            fileJSON["Modified"] = static_cast<std::string> (file.second);
+            fileArray.push_back(fileJSON);
+        }
+
+        completeJSONFile["RemoteFiles"] = fileArray;
+        fileArray.clear();
+
+        for (auto file : localFiles) {
+            json fileJSON;
+            fileJSON["Filename"] = file.first;
+            fileJSON["Modified"] = static_cast<std::string> (file.second);
+            fileArray.push_back(fileJSON);
+        }
+
+        completeJSONFile["LocalFiles"] = fileArray;
+
+        std::ofstream jsonFileCacheStream(argData.fileCache);
+
+        if (jsonFileCacheStream) {
+            jsonFileCacheStream << std::setw(4) << completeJSONFile << std::endl;
+        }
+
+    }
+    
+}
+
+//
+// Load maps containing local and remote files to synchronise
 //
 
 static inline void loadFilesToSynchronize(CFTP &ftpServer, ParamArgData &argData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
     std::vector<std::string> fileList;
     
-    // Get local and remote file lists
-
-    listRemoteRecursive(ftpServer, argData.remoteDirectory, fileList);
-
-    remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
+    // Load any cached remote files
+    
+    loadCachedRemoteFiles(argData, remoteFiles);
+    
+    // No cached remote files so get list from server
 
     if (remoteFiles.empty()) {
-        std::cout << "*** Remote server directory empty ***" << std::endl;
+
+        listRemoteRecursive(ftpServer, argData.remoteDirectory, fileList);
+
+        remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
+
+        if (remoteFiles.empty()) {
+            std::cout << "*** Remote server directory empty ***" << std::endl;
+        }
+        
     }
+    
+    // Create local file list (done at runtime to pickup changes).
+    
+    fileList.clear();
     
     listLocalRecursive(argData.localDirectory, fileList);
 
     for (auto file : fileList) {
+        std::time_t localModifiedTime{ 0};
         if (fs::is_regular_file(file)) {
-            std::time_t localModifiedTime = fs::last_write_time(file);
-            localFiles[file] = CFTP::DateTime(std::localtime(&localModifiedTime));
-        } else if (fs::is_directory(file)) {
-            localFiles[file] = CFTP::DateTime();
+            localModifiedTime = fs::last_write_time(file);
         }
+        localFiles[file] = static_cast<CFTP::DateTime> (std::localtime(&localModifiedTime));
     }
       
     if (localFiles.empty()) {
@@ -304,32 +401,37 @@ int main(int argc, char** argv) {
             std::cout << "*** Transferring any new files to server ***" << std::endl;
 
             std::vector<std::string> newFiles;
-   
-            for (auto &file : localFiles) {
+               for (auto &file : localFiles) {
                 if (remoteFiles.find(localFileToRemote(argData, file.first)) == remoteFiles.end()) {
                     newFiles.push_back( file.first );
                 }
             }
-
+            
             if (!newFiles.empty()) {
+                sort(newFiles.begin(), newFiles.end());  // Putfiles() requires list to be sorted
                 FileInfoMap newFilesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, argData.localDirectory, newFiles))};
                 std::cout << "Number of new files transfered [" << newFilesTransfered.size() << "]" << std::endl;
                 remoteFiles.insert(newFilesTransfered.begin(), newFilesTransfered.end());
             }
 
-            // PASS 2) Remove any deleted local files from server
+            // PASS 2) Remove any deleted local files from server and local cache
 
             std::cout << "*** Removing any deleted local files from server ***" << std::endl;
 
-            for (auto file : remoteFiles) {
-                if (localFiles.find(remoteFileToLocal(argData, file.first)) == localFiles.end()) {
-                    if (ftpServer.deleteFile(file.first) == 250) {
-                        std::cout << "File [" << file.first << " ] removed from server." << std::endl;
-                    } else if (ftpServer.removeDirectory(file.first) == 250) {
-                        std::cout << "Directory [" << file.first << " ] removed from server." << std::endl;
+            for (auto fileIter = remoteFiles.begin(); fileIter != remoteFiles.end();) {
+                if (localFiles.find(remoteFileToLocal(argData, fileIter->first)) == localFiles.end()) {
+                    if (ftpServer.deleteFile(fileIter->first) == 250) {
+                        fileIter = remoteFiles.erase(fileIter);
+                        std::cout << "File [" << fileIter->first << " ] removed from server." << std::endl;
+                    } else if (ftpServer.removeDirectory(fileIter->first) == 250) {
+                        fileIter = remoteFiles.erase(fileIter);
+                        std::cout << "Directory [" << fileIter->first << " ] removed from server." << std::endl;
                     } else {
-                        std::cerr << "File [" << file.first << " ] could not be removed from server." << std::endl;
+                        fileIter++;
+                        std::cerr << "File [" << fileIter->first << " ] could not be removed from server." << std::endl;
                     }
+                } else {
+                    fileIter++;
                 }
             }
 
@@ -347,6 +449,7 @@ int main(int argc, char** argv) {
                         std::cout << "Server file " << localFileToRemote(argData, file.first) << " out of date." << std::endl;
                         if (ftpServer.putFile(localFileToRemote(argData, file.first), file.first) == 226) {
                             std::cout << "File [" << file.first << " ] copied to server." << std::endl;
+                            remoteFiles[localFileToRemote(argData, file.first)] = localFiles[file.first];
                         } else {
                             std::cerr << "File [" << file.first << " ] not copied to server." << std::endl;
                         }
@@ -354,11 +457,19 @@ int main(int argc, char** argv) {
                 }
             }
 
+            if (localFiles.size() != remoteFiles.size()) {
+                std::cerr << "FTP server seems to be out of sync with local directory." << std::endl;
+            }
+            
             // Disconnect 
 
             ftpServer.disconnect();
 
-            std::cout << "*** Files synchronized with server ***" << std::endl;
+            std::cout << "*** Files synchronized with server ***\n" << std::endl;
+            
+            // Write away file cache
+            
+            saveFilesToCache(argData, remoteFiles, localFiles);
 
             // Wait poll interval (pollTime == 0 then one pass)
 
