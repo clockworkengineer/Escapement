@@ -117,7 +117,7 @@ namespace Escapement_Files {
             fileInfoMap[file] = modifiedDateTime;
         }
 
-        return (move(fileInfoMap));
+        return (std::move(fileInfoMap));
 
     }
 
@@ -154,11 +154,13 @@ namespace Escapement_Files {
         listLocalRecursive(optionData.localDirectory, fileList);
 
         for (auto file : fileList) {
-            time_t localModifiedTime{ 0};
-            if (fs::is_regular_file(file)) {
+             if (fs::is_regular_file(file)) {
+                time_t localModifiedTime{ 0};
                 localModifiedTime = fs::last_write_time(file);
+                localFiles[file] = static_cast<CFTP::DateTime> (localtime(&localModifiedTime));
+            } else if (fs::is_directory(file)) { 
+                localFiles[file] = CFTP::DateTime();
             }
-            localFiles[file] = static_cast<CFTP::DateTime> (localtime(&localModifiedTime));
         }
 
         if (localFiles.empty()) {
@@ -177,7 +179,6 @@ namespace Escapement_Files {
         // Save any cached file information
 
         saveCachedFiles(optionData.fileCache, remoteFiles, localFiles);
-
 
     }
 

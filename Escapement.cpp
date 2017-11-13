@@ -163,29 +163,33 @@ namespace Escapement {
 
                 loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
 
-                // PASS 1) Copy new files to server
+                // PASS 1) Copy new/updated files to server
 
-                cout << "*** Transferring any new files to server ***" << endl;
+                cout << "*** Transferring any new/updated files to server ***" << endl;
 
-                vector<string> newFiles;
+                vector<string> filesToTransfer;
                 for (auto &file : localFiles) {
-                    if (remoteFiles.find(localFileToRemote(optionData, file.first)) == remoteFiles.end()) {
-                        newFiles.push_back(file.first);
-                    }
+                    auto remoteFile = remoteFiles.find(localFileToRemote(optionData, file.first));
+                    if ( (remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
+                        filesToTransfer.push_back(file.first);
+                    } 
                 }
 
-                if (!newFiles.empty()) {
-                    sort(newFiles.begin(), newFiles.end()); // Putfiles() requires list to be sorted
-                    FileInfoMap newFilesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, newFiles))};
-                    if (!newFilesTransfered.empty()) {
-                        cout << "Number of new files transfered [" << newFilesTransfered.size() << "]" << endl;
-                        remoteFiles.insert(newFilesTransfered.begin(), newFilesTransfered.end());
+                if (!filesToTransfer.empty()) {
+                    sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
+                    FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
+                    if (!filesTransfered.empty()) {
+                        cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
+                        for (auto &file : filesTransfered) {
+                            remoteFiles[file.first] = file.second;
+                            cout << "File [" << file.first << "]" << endl;
+                        }
                     } else {
                         cerr << "None of the selected files transferred." << endl;
                     }
                 }
 
-                // PASS 2) Remove any deleted local files from server and local cache
+                // PASS 2) Remove any deleted local files/directories from server and local cache
 
                 cout << "*** Removing any deleted local files from server ***" << endl;
 
@@ -203,28 +207,6 @@ namespace Escapement {
                         }
                     } else {
                         fileIter++;
-                    }
-                }
-
-                // PASS 3) Copy any updated local files to remote server. Note: PASS 2 may
-                // have deleted some remote files but if the get modified date/time fails
-                // it is ignored and not added to remoteFileModifiedTimes.
-
-                cout << "*** Copying updated local files to server ***" << endl;
-
-                // Copy updated files to server
-
-                for (auto file : localFiles) {
-                    if (fs::is_regular_file(file.first)) {
-                        if (remoteFiles[localFileToRemote(optionData, file.first)] < localFiles[file.first]) {
-                            cout << "Server file " << localFileToRemote(optionData, file.first) << " out of date." << endl;
-                            if (ftpServer.putFile(localFileToRemote(optionData, file.first), file.first) == 226) {
-                                cout << "File [" << file.first << " ] copied to server." << endl;
-                                remoteFiles[localFileToRemote(optionData, file.first)] = localFiles[file.first];
-                            } else {
-                                cerr << "File [" << file.first << " ] not copied to server." << endl;
-                            }
-                        }
                     }
                 }
 
