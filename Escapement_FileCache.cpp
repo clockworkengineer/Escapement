@@ -13,7 +13,7 @@
 //
 // Module: Escapement_FileCache
 //
-// Description:
+// Description: Escapement file information cache handling code.
 // 
 // Dependencies: 
 // 

@@ -15,7 +15,7 @@
 //
 // Description:
 // 
-// Dependencies: 
+// Dependencies: Escapement file handling code.
 // 
 // C11++              : Use of C11++ features.
 // Misc.              : Lohmann JSON library

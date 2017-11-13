@@ -104,6 +104,57 @@ namespace Escapement {
         exit(EXIT_FAILURE);
 
     }
+    
+    //
+    // Transfer files from local directory to server
+    //
+    
+    static void transferFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
+        
+        if (!filesToTransfer.empty()) {
+            
+            sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
+            
+            FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
+            
+            if (!filesTransfered.empty()) {
+                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
+                for (auto &file : filesTransfered) {
+                    remoteFiles[file.first] = file.second;
+                    cout << "File [" << file.first << "]" << endl;
+                }
+            } else {
+                cerr << "None of the selected files transferred." << endl;
+            }
+            
+        }
+        
+    }
+    
+    //
+    // Purge any remote files from server that have been deleted locally
+    //
+    
+    static void removeDeletedFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles,  const FileInfoMap &localFiles) {
+
+        for (auto fileIter = remoteFiles.begin(); fileIter != remoteFiles.end();) {
+            if (localFiles.find(remoteFileToLocal(optionData, fileIter->first)) == localFiles.end()) {
+                if (ftpServer.deleteFile(fileIter->first) == 250) {
+                    cout << "File [" << fileIter->first << " ] removed from server." << endl;
+                    fileIter = remoteFiles.erase(fileIter);
+                } else if (ftpServer.removeDirectory(fileIter->first) == 250) {
+                    cout << "Directory [" << fileIter->first << " ] removed from server." << endl;
+                    fileIter = remoteFiles.erase(fileIter);
+                } else {
+                    cerr << "File [" << fileIter->first << " ] could not be removed from server." << endl;
+                    fileIter++;
+                }
+            } else {
+                fileIter++;
+            }
+        }
+        
+    }
 
     // ================
     // PUBLIC FUNCTIONS
@@ -174,41 +225,14 @@ namespace Escapement {
                         filesToTransfer.push_back(file.first);
                     } 
                 }
-
-                if (!filesToTransfer.empty()) {
-                    sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
-                    FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
-                    if (!filesTransfered.empty()) {
-                        cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
-                        for (auto &file : filesTransfered) {
-                            remoteFiles[file.first] = file.second;
-                            cout << "File [" << file.first << "]" << endl;
-                        }
-                    } else {
-                        cerr << "None of the selected files transferred." << endl;
-                    }
-                }
+                
+                transferFiles(ftpServer, optionData, remoteFiles, filesToTransfer);
 
                 // PASS 2) Remove any deleted local files/directories from server and local cache
 
                 cout << "*** Removing any deleted local files from server ***" << endl;
 
-                for (auto fileIter = remoteFiles.begin(); fileIter != remoteFiles.end();) {
-                    if (localFiles.find(remoteFileToLocal(optionData, fileIter->first)) == localFiles.end()) {
-                        if (ftpServer.deleteFile(fileIter->first) == 250) {
-                            cout << "File [" << fileIter->first << " ] removed from server." << endl;
-                            fileIter = remoteFiles.erase(fileIter);
-                        } else if (ftpServer.removeDirectory(fileIter->first) == 250) {
-                            cout << "Directory [" << fileIter->first << " ] removed from server." << endl;
-                            fileIter = remoteFiles.erase(fileIter);
-                        } else {
-                            cerr << "File [" << fileIter->first << " ] could not be removed from server." << endl;
-                            fileIter++;
-                        }
-                    } else {
-                        fileIter++;
-                    }
-                }
+                removeDeletedFiles(ftpServer, optionData, remoteFiles, localFiles);
 
                 if (localFiles.size() != remoteFiles.size()) {
                     cerr << "FTP server seems to be out of sync with local directory." << endl;
