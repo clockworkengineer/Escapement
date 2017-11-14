@@ -105,56 +105,7 @@ namespace Escapement {
 
     }
     
-    //
-    // Transfer files from local directory to server
-    //
-    
-    static void transferFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
-        
-        if (!filesToTransfer.empty()) {
-            
-            sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
-            
-            FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
-            
-            if (!filesTransfered.empty()) {
-                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
-                for (auto &file : filesTransfered) {
-                    remoteFiles[file.first] = file.second;
-                    cout << "File [" << file.first << "]" << endl;
-                }
-            } else {
-                cerr << "None of the selected files transferred." << endl;
-            }
-            
-        }
-        
-    }
-    
-    //
-    // Purge any remote files from server that have been deleted locally
-    //
-    
-    static void removeDeletedFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles,  const FileInfoMap &localFiles) {
 
-        for (auto fileIter = remoteFiles.begin(); fileIter != remoteFiles.end();) {
-            if (localFiles.find(remoteFileToLocal(optionData, fileIter->first)) == localFiles.end()) {
-                if (ftpServer.deleteFile(fileIter->first) == 250) {
-                    cout << "File [" << fileIter->first << " ] removed from server." << endl;
-                    fileIter = remoteFiles.erase(fileIter);
-                } else if (ftpServer.removeDirectory(fileIter->first) == 250) {
-                    cout << "Directory [" << fileIter->first << " ] removed from server." << endl;
-                    fileIter = remoteFiles.erase(fileIter);
-                } else {
-                    cerr << "File [" << fileIter->first << " ] could not be removed from server." << endl;
-                    fileIter++;
-                }
-            } else {
-                fileIter++;
-            }
-        }
-        
-    }
 
     // ================
     // PUBLIC FUNCTIONS
@@ -168,6 +119,7 @@ namespace Escapement {
             CFTP ftpServer;
             FileInfoMap localFiles;
             FileInfoMap remoteFiles;
+            vector<string> filesToProcess;
 
             // Read in command line parameters and process
 
@@ -218,21 +170,27 @@ namespace Escapement {
 
                 cout << "*** Transferring any new/updated files to server ***" << endl;
 
-                vector<string> filesToTransfer;
                 for (auto &file : localFiles) {
-                    auto remoteFile = remoteFiles.find(localFileToRemote(optionData, file.first));
+                    auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
                     if ( (remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
-                        filesToTransfer.push_back(file.first);
+                        filesToProcess.push_back(file.first);
                     } 
                 }
                 
-                transferFiles(ftpServer, optionData, remoteFiles, filesToTransfer);
+                transferFiles(ftpServer, optionData, remoteFiles, filesToProcess);
 
                 // PASS 2) Remove any deleted local files/directories from server and local cache
 
                 cout << "*** Removing any deleted local files from server ***" << endl;
 
-                removeDeletedFiles(ftpServer, optionData, remoteFiles, localFiles);
+                filesToProcess.clear();
+                for (auto &file : remoteFiles) {
+                    if (localFiles.find(convertFilePath(optionData, file.first)) == localFiles.end()) {
+                        filesToProcess.push_back(file.first);
+                    }
+                }
+                
+                deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
 
                 if (localFiles.size() != remoteFiles.size()) {
                     cerr << "FTP server seems to be out of sync with local directory." << endl;

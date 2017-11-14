@@ -84,23 +84,23 @@ namespace Escapement_Files {
     // ================
     
     //
-    // Convert local file path to remote server path
+    // Convert file path to/from local/remote.
     //
 
-    string localFileToRemote(EscapementOptions &optionData, const string &localFilePath) {
-        size_t localDirectoryLength = optionData.localDirectory.size();
-        if (optionData.localDirectory.back() != kServerPathSep) localDirectoryLength++;
-        return (optionData.remoteDirectory + kServerPathSep + localFilePath.substr(localDirectoryLength));
-    }
-
-    //
-    // Convert remote server file path to local path
-    //
-
-    string remoteFileToLocal(EscapementOptions &optionData, const string &remoteFilePath) {
-        size_t remoteDirectoryLength = optionData.remoteDirectory.size();
-        if (optionData.localDirectory.back() == kServerPathSep) remoteDirectoryLength++;
-        return (optionData.localDirectory + remoteFilePath.substr(remoteDirectoryLength));
+    string convertFilePath(const EscapementOptions &optionData, const string &filePath) {
+        if (filePath.find(optionData.localDirectory) == 0) {
+            size_t localDirectoryLength = optionData.localDirectory.size();
+            if (optionData.localDirectory.back() != kServerPathSep) localDirectoryLength++;
+            return (optionData.remoteDirectory + kServerPathSep + filePath.substr(localDirectoryLength));
+        } else  if (filePath.find(optionData.remoteDirectory) == 0) {
+            size_t remoteDirectoryLength = optionData.remoteDirectory.size();
+            if (optionData.localDirectory.back() == kServerPathSep) remoteDirectoryLength++;
+            return (optionData.localDirectory + filePath.substr(remoteDirectoryLength));
+        } else {
+            std::cerr << "Error: Cannot convert file path " << filePath << std::endl;
+            return(filePath);
+        }
+        
     }
 
     //
@@ -122,10 +122,56 @@ namespace Escapement_Files {
     }
 
     //
+    // Transfer files from local directory to server
+    //
+    
+    void transferFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
+        
+        if (!filesToTransfer.empty()) {
+            
+            sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
+            
+            FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
+            
+            if (!filesTransfered.empty()) {
+                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
+                for (auto &file : filesTransfered) {
+                    remoteFiles[file.first] = file.second;
+                    cout << "File [" << file.first << "]" << endl;
+                }
+            } else {
+                cerr << "None of the selected files transferred." << endl;
+            }
+            
+        }
+        
+    }
+    
+    //
+    // Purge any remote files from server that have been deleted locally
+    //
+    
+    void deleteFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToDelete) {
+
+        for (auto &file : filesToDelete) {
+            if (ftpServer.deleteFile(file) == 250) {
+                cout << "File [" << file << " ] removed from server." << endl;
+                remoteFiles.erase(file);
+            } else if (ftpServer.removeDirectory(file) == 250) {
+                cout << "Directory [" << file << " ] removed from server." << endl;
+                remoteFiles.erase(file);
+            } else {
+                cerr << "File [" << file << " ] could not be removed from server." << endl;
+            }
+        }
+        
+    }
+   
+    //
     // Load local and remote file information before synchronise
     //
 
-    void loadFilesBeforeSynchronise(CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void loadFilesBeforeSynchronise(CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
         vector<string> fileList;
 
@@ -174,7 +220,7 @@ namespace Escapement_Files {
     // Save maps containing local and remote files after synchronise
     //
 
-    void saveFilesAfterSynchronise(CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void saveFilesAfterSynchronise(CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
         // Save any cached file information
 
