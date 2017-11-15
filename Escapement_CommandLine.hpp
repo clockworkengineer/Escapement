@@ -35,8 +35,9 @@ namespace Escapement_CommandLine {
         std::string serverPort;         // FTP server port
         std::string remoteDirectory;    // FTP remote directory for sync
         std::string localDirectory;     // Local directory for sync with server
-        int pollTime{ 0};               // Poll time in minutes.
+        int pollTime { 0 };             // Poll time in minutes.
         std::string fileCache;          // JSON tile to hold remote/local file info
+        bool pullFromServer {false};    // == true then pulling files from server
         std::string configFileName;     // Configuration file name
     };
 

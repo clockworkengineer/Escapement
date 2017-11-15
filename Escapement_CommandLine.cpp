@@ -77,7 +77,8 @@ namespace Escapement_CommandLine {
                 ("remote,r", po::value<std::string>(&optionData.remoteDirectory)->required(), "Remote directory to restore")
                 ("local,l", po::value<std::string>(&optionData.localDirectory)->required(), "Local directory as base for restore")
                 ("cache,c", po::value<std::string>(&optionData.fileCache), "JSON file cache")
-                ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes");
+                ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes")
+                ("pull", "Pull files from server to local directory");
 
     }
 
@@ -132,6 +133,10 @@ namespace Escapement_CommandLine {
                 }
             }
 
+            if (vm.count("pull")) {
+                optionData.pullFromServer=true;
+            }
+            
             po::notify(vm);
 
         } catch (po::error& e) {

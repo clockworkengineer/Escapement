@@ -120,19 +120,85 @@ namespace Escapement_Files {
         return (std::move(fileInfoMap));
 
     }
+    
+    //
+    // Get all local file last modified date/time and return as FileInfoMap
+    //
+
+    FileInfoMap getLocalFileListDateTime(const vector<string> &fileList) {
+
+        FileInfoMap fileInfoMap;
+
+          for (auto file : fileList) {
+             if (fs::is_regular_file(file)) {
+                time_t localModifiedTime{ 0};
+                localModifiedTime = fs::last_write_time(file);
+                fileInfoMap[file] = static_cast<CFTP::DateTime> (localtime(&localModifiedTime));
+            } else if (fs::is_directory(file)) { 
+                fileInfoMap[file] = CFTP::DateTime();
+            }
+        }
+
+        return (std::move(fileInfoMap));
+
+    }
+    
+    //
+    // Get all remote files
+    //
+
+    void getAllRemoteFiles(CFTP &ftpServer, const std::string &remoteDirectory, FileInfoMap &remoteFiles){
+
+        vector<string> fileList;
+             
+        listRemoteRecursive(ftpServer, remoteDirectory, fileList);
+
+        remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
+
+        if (remoteFiles.empty()) {
+            cout << "*** Remote server directory empty ***" << endl;
+        }
+
+    }
 
     //
-    // Transfer files from local directory to server
+    // Pull files from remote server to local directory
     //
     
-    void transferFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
+    void pullFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &localFiles, std::vector<string> &filesToTransfer) {
+        
+        if (!filesToTransfer.empty()) {
+            
+            sort(filesToTransfer.begin(), filesToTransfer.end()); // getFiles() requires list to be sorted
+            
+            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
+            
+            if (!filesTransfered.empty()) {
+                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
+                for (auto &file : filesTransfered) {
+                    localFiles[file.first] = file.second;
+                    cout << "File [" << file.first << "]" << endl;
+                }
+            } else {
+                cerr << "None of the selected files transferred." << endl;
+            }
+            
+        }
+        
+    }
+    
+    //
+    // Push files from local directory to server
+    //
+    
+    void pushFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
         
         if (!filesToTransfer.empty()) {
             
             sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
             
-            FileInfoMap filesTransfered{ getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
-            
+            FileInfoMap filesTransfered { getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer)) };
+     
             if (!filesTransfered.empty()) {
                 cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
@@ -182,15 +248,7 @@ namespace Escapement_Files {
         // No cached remote files so get list from server
 
         if (remoteFiles.empty()) {
-
-            listRemoteRecursive(ftpServer, optionData.remoteDirectory, fileList);
-
-            remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
-
-            if (remoteFiles.empty()) {
-                cout << "*** Remote server directory empty ***" << endl;
-            }
-
+            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
         }
 
         // Create local file list (done at runtime to pickup changes).
@@ -199,16 +257,8 @@ namespace Escapement_Files {
 
         listLocalRecursive(optionData.localDirectory, fileList);
 
-        for (auto file : fileList) {
-             if (fs::is_regular_file(file)) {
-                time_t localModifiedTime{ 0};
-                localModifiedTime = fs::last_write_time(file);
-                localFiles[file] = static_cast<CFTP::DateTime> (localtime(&localModifiedTime));
-            } else if (fs::is_directory(file)) { 
-                localFiles[file] = CFTP::DateTime();
-            }
-        }
-
+        localFiles = getLocalFileListDateTime(fileList);
+        
         if (localFiles.empty()) {
             cout << "*** Local directory empty ***" << endl;
         }
