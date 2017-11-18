@@ -128,7 +128,7 @@ namespace Escapement {
 
         // Enable SSL
 
-        ftpServer.setSslEnabled(true);
+        ftpServer.setSslEnabled(false);
 
         // Connect
 
@@ -136,6 +136,10 @@ namespace Escapement {
             throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
         }
 
+        // Binary transfer more on
+        
+        ftpServer.setBinaryTransfer(true);
+                    
         // Remote directory does not exist.
 
         if (!ftpServer.fileExists(optionData.remoteDirectory)) {
@@ -159,6 +163,7 @@ namespace Escapement {
 
         if (localFiles.size() != remoteFiles.size()) {
             cerr << "Not all files pulled from FTP server." << endl;
+            std::cerr << "Remote [" << remoteFiles.size() <<  "] Local [" << localFiles.size() << "]" <<  std::endl;
         }
 
         // Disconnect 
@@ -213,6 +218,10 @@ namespace Escapement {
                 throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
             }
 
+            // Binary transfer more on
+
+            ftpServer.setBinaryTransfer(true);
+            
             // Create remote directory
 
             if (!ftpServer.fileExists(optionData.remoteDirectory)) {

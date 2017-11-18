@@ -78,7 +78,8 @@ namespace Escapement_CommandLine {
                 ("local,l", po::value<std::string>(&optionData.localDirectory)->required(), "Local directory as base for restore")
                 ("cache,c", po::value<std::string>(&optionData.fileCache), "JSON file cache")
                 ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes")
-                ("pull", "Pull files from server to local directory");
+                ("pull", "Pull files from server to local directory")
+                ("refresh", "Refresh json cache file from local and remote directories");
 
     }
 
@@ -133,9 +134,8 @@ namespace Escapement_CommandLine {
                 }
             }
 
-            if (vm.count("pull")) {
-                optionData.pullFromServer=true;
-            }
+            optionData.pullFromServer=vm.count("pull");
+            optionData.refreshCache=vm.count("refresh");
             
             po::notify(vm);
 

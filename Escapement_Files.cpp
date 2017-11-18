@@ -29,8 +29,7 @@
 // C++ STL
 //
 
-//#include <iostream>
-//#include <fstream>
+#include <iostream>
 
 //
 // Antik Classes
@@ -167,17 +166,19 @@ namespace Escapement_Files {
     
     void pullFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &localFiles, std::vector<string> &filesToTransfer) {
         
+        int fileCount { 0 };
+        Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
+        
         if (!filesToTransfer.empty()) {
             
             sort(filesToTransfer.begin(), filesToTransfer.end()); // getFiles() requires list to be sorted
             
-            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(ftpServer, optionData.localDirectory, filesToTransfer))};
+            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(ftpServer, optionData.localDirectory, filesToTransfer, completionFn))};
             
             if (!filesTransfered.empty()) {
                 cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
                     localFiles[file.first] = file.second;
-                    cout << "File [" << file.first << "]" << endl;
                 }
             } else {
                 cerr << "None of the selected files transferred." << endl;
@@ -192,18 +193,20 @@ namespace Escapement_Files {
     //
     
     void pushFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
-        
+  
+        int fileCount { 0 };
+        Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
+               
         if (!filesToTransfer.empty()) {
             
             sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
             
-            FileInfoMap filesTransfered { getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer)) };
+            FileInfoMap filesTransfered { getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer, completionFn)) };
      
             if (!filesTransfered.empty()) {
                 cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
                     remoteFiles[file.first] = file.second;
-                    cout << "File [" << file.first << "]" << endl;
                 }
             } else {
                 cerr << "None of the selected files transferred." << endl;
