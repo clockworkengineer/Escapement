@@ -152,18 +152,26 @@ namespace Escapement {
         cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
 
         // Get all remote file information for pull
+        
+        cout << "*** Getting file list from remote directory... ***" << endl;
 
         getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
         
         for (auto &file : remoteFiles) {
              filesToProcess.push_back(file.first);
         }
+        
+        // Get non empty list
+        
+        if (!filesToProcess.empty()) {
+            cout << "*** Pulling " << filesToProcess.size() << " files from server. ***" << endl;
+            pullFiles(ftpServer, optionData, localFiles, filesToProcess);
+        }
 
-        pullFiles(ftpServer, optionData, localFiles, filesToProcess);
-
+        // Report disparity in number of files
+        
         if (localFiles.size() != remoteFiles.size()) {
             cerr << "Not all files pulled from FTP server." << endl;
-            std::cerr << "Remote [" << remoteFiles.size() <<  "] Local [" << localFiles.size() << "]" <<  std::endl;
         }
 
         // Disconnect 
@@ -237,12 +245,12 @@ namespace Escapement {
             cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
 
             // Get local and remote file information for synchronise
+            
+            cout << "*** Getting local/remote file lists... ***" << endl;
 
             loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
 
             // PASS 1) Copy new/updated files to server
-
-            cout << "*** Transferring any new/updated files to server ***" << endl;
 
             for (auto &file : localFiles) {
                 auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
@@ -251,12 +259,15 @@ namespace Escapement {
                 }
             }
 
-            pushFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+            // Push non empty list
+            
+            if (!filesToProcess.empty()) {
+                cout << "*** Transferring " << filesToProcess.size() << " new/updated files to server ***" << endl;
+                pushFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+            }
 
             // PASS 2) Remove any deleted local files/directories from server and local cache
-
-            cout << "*** Removing any deleted local files from server ***" << endl;
-
+ 
             filesToProcess.clear();
             for (auto &file : remoteFiles) {
                 if (localFiles.find(convertFilePath(optionData, file.first)) == localFiles.end()) {
@@ -264,8 +275,15 @@ namespace Escapement {
                 }
             }
 
-            deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+            // Delete non empty list
+            
+            if (!filesToProcess.empty()) {
+                cout << "*** Removing " << filesToProcess.size() << " deleted local files from server ***" << endl;
+                deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+            }
 
+            // Report disparity in number of files
+            
             if (localFiles.size() != remoteFiles.size()) {
                 cerr << "FTP server seems to be out of sync with local directory." << endl;
             }

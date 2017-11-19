@@ -170,18 +170,23 @@ namespace Escapement_Files {
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
         
         if (!filesToTransfer.empty()) {
-            
+
             sort(filesToTransfer.begin(), filesToTransfer.end()); // getFiles() requires list to be sorted
             
             FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(ftpServer, optionData.localDirectory, filesToTransfer, completionFn))};
             
             if (!filesTransfered.empty()) {
-                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
                     localFiles[file.first] = file.second;
                 }
-            } else {
-                cerr << "None of the selected files transferred." << endl;
+            }
+            
+            if (filesToTransfer.size() != filesTransfered.size()) {
+                for (auto file : filesToTransfer) {
+                    if (!filesTransfered.count(convertFilePath(optionData, file))) {
+                        cout << "File [" << file << "] not transferred/created." << std::endl;                  
+                    }
+                }
             }
             
         }
@@ -208,10 +213,16 @@ namespace Escapement_Files {
                 for (auto &file : filesTransfered) {
                     remoteFiles[file.first] = file.second;
                 }
-            } else {
-                cerr << "None of the selected files transferred." << endl;
             }
-            
+
+            if (filesToTransfer.size() != filesTransfered.size()) {
+                for (auto file : filesToTransfer) {
+                    if (!filesTransfered.count(convertFilePath(optionData, file))) {
+                        cout << "File [" << file << "] not transferred/created." << std::endl;
+                    }
+                }
+            }
+
         }
         
     }
