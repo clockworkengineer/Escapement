@@ -29,6 +29,8 @@
 //   -l [ --local ] arg     Local directory
 //   -t [ --polltime ] arg  Server poll time in minutes
 //   -c [ --cache ] arg     JSON filename cache
+//   -g [ --pull ] arg      Pull (get) files from server to local directory.
+//   -f [ -refresh ] arg    Re(f)resh json cache file from local and remote directories"
 //
 // Dependencies:
 //
@@ -128,7 +130,7 @@ namespace Escapement {
 
         // Enable SSL
 
-        ftpServer.setSslEnabled(false);
+        ftpServer.setSslEnabled(true);
 
         // Connect
 
@@ -160,7 +162,7 @@ namespace Escapement {
         for (auto &file : remoteFiles) {
              filesToProcess.push_back(file.first);
         }
-        
+
         // Get non empty list
         
         if (!filesToProcess.empty()) {
@@ -249,14 +251,14 @@ namespace Escapement {
             cout << "*** Getting local/remote file lists... ***" << endl;
 
             loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
-
+            
             // PASS 1) Copy new/updated files to server
 
             for (auto &file : localFiles) {
-                auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
-                if ((remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
+               auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
+               if ((remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
                     filesToProcess.push_back(file.first);
-                }
+               }
             }
 
             // Push non empty list
@@ -292,7 +294,7 @@ namespace Escapement {
 
             ftpServer.disconnect();
 
-            cout << "*** Files synchronized with server ***\n" << endl;
+            cout << "*** Files synchronised with server ***\n" << endl;
 
             // Saved file list after synchronise
 

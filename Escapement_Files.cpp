@@ -87,14 +87,15 @@ namespace Escapement_Files {
     //
 
     string convertFilePath(const EscapementOptions &optionData, const string &filePath) {
+        
+        fs::path convertedPath;
+        
         if (filePath.find(optionData.localDirectory) == 0) {
-            size_t localDirectoryLength = optionData.localDirectory.size();
-            if (optionData.localDirectory.back() != kServerPathSep) localDirectoryLength++;
-            return (optionData.remoteDirectory + kServerPathSep + filePath.substr(localDirectoryLength));
+            convertedPath = optionData.remoteDirectory + kServerPathSep + filePath.substr(optionData.localDirectory.size());
+            return (convertedPath.normalize().string());
         } else  if (filePath.find(optionData.remoteDirectory) == 0) {
-            size_t remoteDirectoryLength = optionData.remoteDirectory.size();
-            if (optionData.localDirectory.back() == kServerPathSep) remoteDirectoryLength++;
-            return (optionData.localDirectory + filePath.substr(remoteDirectoryLength));
+            convertedPath = optionData.localDirectory + filePath.substr(optionData.remoteDirectory.size());
+            return (convertedPath.normalize().string());
         } else {
             std::cerr << "Error: Cannot convert file path " << filePath << std::endl;
             return(filePath);
@@ -264,7 +265,7 @@ namespace Escapement_Files {
         if (remoteFiles.empty()) {
             getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
         }
-
+        
         // Create local file list (done at runtime to pickup changes).
 
         fileList.clear();
