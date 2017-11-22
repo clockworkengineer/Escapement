@@ -55,7 +55,9 @@ namespace Escapement_CommandLine {
     // =======
 
     using namespace std;
-        
+    
+    using namespace Escapement;
+    
     namespace po = boost::program_options;
     namespace fs = boost::filesystem;
 

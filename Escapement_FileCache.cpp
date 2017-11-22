@@ -72,14 +72,14 @@ namespace Escapement_FileCache {
     // Load local and remote file information from cache
     //
 
-    void loadCachedFiles(const string &fileCache, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void loadCachedFiles(const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
-        if (!fileCache.empty()) {
+        if (!optionData.fileCache.empty()) {
             
             json fileArray = json::array();
             json completeJSONFile;
 
-            ifstream jsonFileCacheStream { fileCache };
+            ifstream jsonFileCacheStream { optionData.fileCache };
 
             if (jsonFileCacheStream) {
 
@@ -105,9 +105,9 @@ namespace Escapement_FileCache {
     // Save  local and remote file information to cache
     //
 
-    void saveCachedFiles(const string &fileCache, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void saveCachedFiles(const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
 
-        if (!fileCache.empty()) {
+        if (!optionData.fileCache.empty()) {
 
             json fileArray = json::array();
             json completeJSONFile;
@@ -131,7 +131,7 @@ namespace Escapement_FileCache {
 
             completeJSONFile["LocalFiles"] = fileArray;
 
-            ofstream jsonFileCacheStream(fileCache);
+            ofstream jsonFileCacheStream(optionData.fileCache);
 
             if (jsonFileCacheStream) {
                 jsonFileCacheStream << setw(4) << completeJSONFile << endl;

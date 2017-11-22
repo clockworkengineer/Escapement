@@ -30,8 +30,8 @@
 
 namespace Escapement_FileCache {
 
-    void loadCachedFiles(const std::string &fileCache, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);
-    void saveCachedFiles(const std::string &fileCache, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles); 
+    void loadCachedFiles(const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);
+    void saveCachedFiles(const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles); 
 
 } // namespace Escapement_FileCache
 

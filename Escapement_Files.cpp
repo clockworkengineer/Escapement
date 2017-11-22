@@ -165,7 +165,7 @@ namespace Escapement_Files {
     // Pull files from remote server to local directory
     //
     
-    void pullFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &localFiles, std::vector<string> &filesToTransfer) {
+    void pullFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &localFiles, std::vector<string> &filesToTransfer) {
         
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -198,7 +198,7 @@ namespace Escapement_Files {
     // Push files from local directory to server
     //
     
-    void pushFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
+    void pushFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
   
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -232,7 +232,7 @@ namespace Escapement_Files {
     // Purge any remote files from server that have been deleted locally
     //
     
-    void deleteFiles (CFTP &ftpServer, EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToDelete) {
+    void deleteFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToDelete) {
 
         for (auto &file : filesToDelete) {
             if (ftpServer.deleteFile(file) == 250) {
@@ -258,7 +258,7 @@ namespace Escapement_Files {
 
         // Load any cached file information
 
-        loadCachedFiles(optionData.fileCache, remoteFiles, localFiles);
+        loadCachedFiles(optionData, remoteFiles, localFiles);
 
         // No cached remote files so get list from server
 
@@ -289,7 +289,7 @@ namespace Escapement_Files {
 
         // Save any cached file information
 
-        saveCachedFiles(optionData.fileCache, remoteFiles, localFiles);
+        saveCachedFiles(optionData, remoteFiles, localFiles);
 
     }
 

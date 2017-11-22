@@ -109,7 +109,7 @@ namespace Escapement {
     }
 
     //
-    // Set up ant FTP parameters and connect to server.
+    // Set up FTP parameters and connect to server.
     //
     
     static void connectToServer(CFTP &ftpServer, EscapementOptions &optionData) {
@@ -149,6 +149,8 @@ namespace Escapement {
 
         ftpServer.changeWorkingDirectory(optionData.remoteDirectory);
         ftpServer.getCurrentWoringDirectory(optionData.remoteDirectory);
+
+        cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
 
     }
 
@@ -215,8 +217,6 @@ namespace Escapement {
 
         connectToServer(ftpServer, optionData);
 
-        cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
-
         // Get all remote file information for pull
 
         cout << "*** Getting file list from remote directory... ***" << endl;
@@ -246,7 +246,7 @@ namespace Escapement {
 
         cout << "*** Files pulled from server ***\n" << endl;
 
-        // Make remote modified time the same as local so enable sync to work.
+        // Make remote modified time the same as local to enable sync to work.
 
         for (auto &file : localFiles) {
             remoteFiles[convertFilePath(optionData, file.first)] = file.second;
@@ -277,8 +277,6 @@ namespace Escapement {
             // Connect to server
 
             connectToServer(ftpServer, optionData);
-
-            cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
 
             // Get local and remote file information for synchronise
 
