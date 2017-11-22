@@ -29,6 +29,7 @@ namespace Escapement_CommandLine {
     //
 
     struct EscapementOptions {
+        std::string configFileName;     // Configuration file name
         std::string userName;           // FTP account user name
         std::string userPassword;       // FTP account user name password
         std::string serverName;         // FTP server
@@ -39,7 +40,7 @@ namespace Escapement_CommandLine {
         std::string fileCache;          // JSON tile to hold remote/local file info
         bool pullFromServer { false };  // == true then pulling files from server
         bool refreshCache { false };    // == true then refresh cache file
-        std::string configFileName;     // Configuration file name
+        bool noSSL { false };           // == true switch off default SSL connection
     };
 
     EscapementOptions fetchCommandLineOptions(int argc, char** argv);

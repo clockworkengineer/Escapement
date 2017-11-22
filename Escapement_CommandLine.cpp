@@ -79,7 +79,8 @@ namespace Escapement_CommandLine {
                 ("cache,c", po::value<std::string>(&optionData.fileCache), "JSON file cache")
                 ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes")
                 ("pull,g", "Pull (get) files from server to local directory.")
-                ("refresh,f", "Re(f)resh JSON cache file from local/remote directories");
+                ("refresh,f", "Re(f)resh JSON cache file from local/remote directories")
+                ("nossl,n", "Switch off ssl for connection");
 
     }
 
@@ -136,6 +137,7 @@ namespace Escapement_CommandLine {
 
             optionData.pullFromServer=vm.count("pull");
             optionData.refreshCache=vm.count("refresh");
+            optionData.noSSL=vm.count("nossl");
             
             po::notify(vm);
 
