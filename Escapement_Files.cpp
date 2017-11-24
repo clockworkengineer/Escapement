@@ -234,16 +234,24 @@ namespace Escapement_Files {
     
     void deleteFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToDelete) {
 
-        for (auto &file : filesToDelete) {
-            if (ftpServer.deleteFile(file) == 250) {
-                cout << "File [" << file << " ] removed from server." << endl;
-                remoteFiles.erase(file);
-            } else if (ftpServer.removeDirectory(file) == 250) {
-                cout << "Directory [" << file << " ] removed from server." << endl;
-                remoteFiles.erase(file);
-            } else {
-                cerr << "File [" << file << " ] could not be removed from server." << endl;
+        if (!filesToDelete.empty()) {
+
+            // Sort files in reverse order for delete so directories get deleted last
+            
+            sort(filesToDelete.rbegin(), filesToDelete.rend()); 
+
+            for (auto &file : filesToDelete) {
+                if (ftpServer.deleteFile(file) == 250) {
+                    cout << "File [" << file << " ] removed from server." << endl;
+                    remoteFiles.erase(file);
+                } else if (ftpServer.removeDirectory(file) == 250) {
+                    cout << "Directory [" << file << " ] removed from server." << endl;
+                    remoteFiles.erase(file);
+                } else {
+                    cerr << "File [" << file << " ] could not be removed from server." << endl;
+                }
             }
+
         }
         
     }

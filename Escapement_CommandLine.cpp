@@ -36,6 +36,7 @@
 //
 
 #include "Escapement_CommandLine.hpp"
+#include "Escapement_FileCache.hpp"
 
 //
 // Boost file system & program options
@@ -57,6 +58,7 @@ namespace Escapement_CommandLine {
     using namespace std;
     
     using namespace Escapement;
+    using namespace Escapement_FileCache;
     
     namespace po = boost::program_options;
     namespace fs = boost::filesystem;
@@ -82,7 +84,8 @@ namespace Escapement_CommandLine {
                 ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes")
                 ("pull,g", "Pull (get) files from server to local directory.")
                 ("refresh,f", "Re(f)resh JSON cache file from local/remote directories")
-                ("nossl,n", "Switch off ssl for connection");
+                ("nossl,n", "Switch off ssl for connection")
+                ("override,v", "Override any command line options from cache file");
 
     }
 
@@ -140,6 +143,7 @@ namespace Escapement_CommandLine {
             optionData.pullFromServer=vm.count("pull");
             optionData.refreshCache=vm.count("refresh");
             optionData.noSSL=vm.count("nossl");
+            optionData.override=vm.count("override");
             
             po::notify(vm);
 
@@ -149,6 +153,8 @@ namespace Escapement_CommandLine {
             exit(EXIT_FAILURE);
         }
 
+        loadEscapmentOptions(optionData);
+        
         return(optionData);
         
     }

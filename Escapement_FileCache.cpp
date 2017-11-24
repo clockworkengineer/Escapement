@@ -67,7 +67,35 @@ namespace Escapement_FileCache {
     // ================
     // PUBLIC FUNCTIONS
     // ================
+  
     
+    void loadEscapmentOptions(EscapementOptions &optionData) {
+
+        if (optionData.override) {
+
+            ifstream jsonFileCacheStream{ optionData.fileCache};
+
+            if (jsonFileCacheStream) {
+
+                json completeJSONFile;
+                jsonFileCacheStream >> completeJSONFile;
+
+                json::iterator findOptions = completeJSONFile.find("EscapementOptions");
+                if (findOptions != completeJSONFile.end()) {
+                    json escapementOptions = findOptions.value();
+                    optionData.serverName = escapementOptions["ServerName"];
+                    optionData.serverPort = escapementOptions["ServerPort"];
+                    optionData.userName = escapementOptions["UserName"];
+                    optionData.userPassword = escapementOptions["UserPassword"];
+                    optionData.remoteDirectory = escapementOptions["RemoteDirectory"];
+                    optionData.localDirectory = escapementOptions["LocalDirectory"];
+                }
+
+            }
+
+        }
+    
+    }
     //
     // Load local and remote file information from cache
     //
@@ -111,7 +139,17 @@ namespace Escapement_FileCache {
 
             json fileArray = json::array();
             json completeJSONFile;
-
+            json escapementOptions;
+            
+            escapementOptions["ServerName"] = optionData.serverName;
+            escapementOptions["ServerPort"] = optionData.serverPort;
+            escapementOptions["UserName"] = optionData.userName;
+            escapementOptions["UserPassword"] = optionData.userPassword;    
+            escapementOptions["RemoteDirectory"] = optionData.remoteDirectory;    
+            escapementOptions["LocalDirectory"] = optionData.localDirectory;  
+         
+            completeJSONFile["EscapementOptions"] = escapementOptions;
+ 
             for (auto file : remoteFiles) {
                 json fileJSON;
                 fileJSON["Filename"] = file.first;

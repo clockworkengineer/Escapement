@@ -48,6 +48,7 @@ namespace Escapement {
         bool pullFromServer { false };  // == true then pulling files from server
         bool refreshCache { false };    // == true then refresh cache file
         bool noSSL { false };           // == true switch off default SSL connection
+        bool override { false };        // == true override any option values from cache file
     };
 
 
