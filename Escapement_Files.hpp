@@ -33,11 +33,11 @@ namespace Escapement_Files {
 
     void getAllRemoteFiles(Antik::FTP::CFTP &ftpServer, const std::string &remoteDirectory, Escapement::FileInfoMap &remoteFiles);
     std::string convertFilePath(const Escapement::EscapementOptions &optionData, const std::string &filePath);
-    Escapement::FileInfoMap getLocalFileListDateTime(const std::vector<std::string> &fileList);
-    Escapement::FileInfoMap getRemoteFileListDateTime(Antik::FTP::CFTP &ftpServer, const std::vector<std::string> &fileList);
-    void pullFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &localFiles, std::vector<std::string> &filesToTransfer);
-    void pushFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, std::vector<std::string> &filesToTransfer);
-    void deleteFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, std::vector<std::string> &filesToDelete);
+    Escapement::FileInfoMap getLocalFileListDateTime(const Antik::FTP::FileList &fileList);
+    Escapement::FileInfoMap getRemoteFileListDateTime(Antik::FTP::CFTP &ftpServer, const Antik::FTP::FileList &fileList);
+    void pullFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &localFiles, Antik::FTP::FileList &filesToTransfer);
+    void pushFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Antik::FTP::FileList &filesToTransfer);
+    void deleteFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Antik::FTP::FileList &filesToDelete);
     void loadFilesBeforeSynchronise(Antik::FTP::CFTP  &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);
     void saveFilesAfterSynchronise(Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);   
 

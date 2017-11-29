@@ -114,43 +114,50 @@ namespace Escapement {
     
     static void connectToServer(CFTP &ftpServer, EscapementOptions &optionData) {
 
-        // Set server and port
+        try {
 
-        ftpServer.setServerAndPort(optionData.serverName, optionData.serverPort);
+            // Set server and port
 
-        // Set FTP account user name and password
+            ftpServer.setServerAndPort(optionData.serverName, optionData.serverPort);
 
-        ftpServer.setUserAndPassword(optionData.userName, optionData.userPassword);
+            // Set FTP account user name and password
 
-        // Set SSL
+            ftpServer.setUserAndPassword(optionData.userName, optionData.userPassword);
 
-        ftpServer.setSslEnabled(!optionData.noSSL);
+            // Set SSL
 
-        // Connect
+            ftpServer.setSslEnabled(!optionData.noSSL);
 
-        if (ftpServer.connect() != 230) {
-            throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
-        }
+            // Connect
 
-        // Binary transfer more on
-
-        ftpServer.setBinaryTransfer(true);
-
-        // Remote directory does not exist so create
-
-        if (!ftpServer.fileExists(optionData.remoteDirectory)) {
-            makeRemotePath(ftpServer, optionData.remoteDirectory);
-            if (!ftpServer.fileExists(optionData.remoteDirectory)) {
-                throw CFTP::Exception("Remote FTP server directory " + optionData.remoteDirectory + " could not be created.");
+            if (ftpServer.connect() != 230) {
+                throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
             }
+
+            // Binary transfer more on
+
+            ftpServer.setBinaryTransfer(true);
+
+            // Remote directory does not exist so create
+
+            if (!ftpServer.fileExists(optionData.remoteDirectory)) {
+                makeRemotePath(ftpServer, optionData.remoteDirectory);
+                if (!ftpServer.fileExists(optionData.remoteDirectory)) {
+                    ftpServer.disconnect();
+                    throw CFTP::Exception("Remote FTP server directory " + optionData.remoteDirectory + " could not be created.");
+                }
+            }
+
+            // Overwrite remote directory with server path for it
+
+            ftpServer.changeWorkingDirectory(optionData.remoteDirectory);
+            ftpServer.getCurrentWoringDirectory(optionData.remoteDirectory);
+
+            cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
+
+        } catch (...) {
+             cerr << "Escapement error: Failed to connect to server." << endl;         
         }
-
-        // Overwrite remote directory with server path for it
-
-        ftpServer.changeWorkingDirectory(optionData.remoteDirectory);
-        ftpServer.getCurrentWoringDirectory(optionData.remoteDirectory);
-
-        cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
 
     }
 
@@ -163,7 +170,7 @@ namespace Escapement {
         CFTP ftpServer;
         FileInfoMap localFiles;
         FileInfoMap remoteFiles;
-        vector<string> fileList;
+        FileList fileList;
 
         cout << "*** Refresh file cache ***" << endl;
 
@@ -171,33 +178,42 @@ namespace Escapement {
 
         connectToServer(ftpServer, optionData);
 
-        // Get all remote file information for pull
+        // If connection successful refresh file list cache
 
-        cout << "*** Refreshing file list from remote directory... ***" << endl;
+        if (ftpServer.isConnected()) {
 
-        getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+            // Get all remote file information for pull
 
-        cout << "*** Refreshing file list from local directory... ***" << endl;
+            cout << "*** Refreshing file list from remote directory... ***" << endl;
 
-        listLocalRecursive(optionData.localDirectory, fileList);
-        localFiles = getLocalFileListDateTime(fileList);
+            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
 
-        // Report disparity in number of files
+            cout << "*** Refreshing file list from local directory... ***" << endl;
 
-        if (localFiles.size() != remoteFiles.size()) {
-            cerr << "Not all files pulled from FTP server." << endl;
-        }
+            listLocalRecursive(optionData.localDirectory, fileList);
+            localFiles = getLocalFileListDateTime(fileList);
 
-        // Disconnect from server
+            // Report disparity in number of files
 
-        ftpServer.disconnect();
+            if (localFiles.size() != remoteFiles.size()) {
+                cerr << "Not all files pulled from FTP server." << endl;
+                if (!ftpServer.isConnected()) {
+                    cerr << "FTP server disconnected unexpectedly." << endl;
+                }
+            }
 
-        // Saved file list after synchronise
+            // Disconnect from server
 
-        saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+            ftpServer.disconnect();
 
-        cout << "*** File cache refreshed ***\n" << endl;
+            cout << "*** File cache refreshed ***\n" << endl;
 
+            // Saved file list after synchronise
+
+            saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+
+        } 
+        
     }
 
     //
@@ -209,7 +225,7 @@ namespace Escapement {
         CFTP ftpServer;
         FileInfoMap localFiles;
         FileInfoMap remoteFiles;
-        vector<string> filesToProcess;
+        FileList filesToProcess;
 
         cout << "*** Pulling remote Files ***" << endl;
 
@@ -217,45 +233,59 @@ namespace Escapement {
 
         connectToServer(ftpServer, optionData);
 
-        // Get all remote file information for pull
+        // If connection successful pull files from server
 
-        cout << "*** Getting file list from remote directory... ***" << endl;
+        if (ftpServer.isConnected()) {
 
-        getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+            // Get all remote file information for pull
 
-        for (auto &file : remoteFiles) {
-            filesToProcess.push_back(file.first);
+            cout << "*** Getting file list from remote directory... ***" << endl;
+
+            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+
+            for (auto &file : remoteFiles) {
+                filesToProcess.push_back(file.first);
+            }
+
+            // Get non empty list
+
+            if (!filesToProcess.empty()) {
+                cout << "*** Pulling " << filesToProcess.size() << " files from server. ***" << endl;
+                pullFiles(ftpServer, optionData, localFiles, filesToProcess);
+            }
+
+            // Report disparity in number of files
+
+            if (localFiles.size() != remoteFiles.size()) {
+                cerr << "Not all files pulled from FTP server." << endl;
+                if (!ftpServer.isConnected()) {
+                    cerr << "FTP server disconnected unexpectedly." << endl;
+                }
+            }
+
+            // Disconnect 
+
+            ftpServer.disconnect();
+
+            if (!filesToProcess.empty()) {
+
+                cout << "*** Files pulled from server ***\n" << endl;
+
+                // Make remote modified time the same as local to enable sync to work.
+
+                for (auto &file : localFiles) {
+                    remoteFiles[convertFilePath(optionData, file.first)] = file.second;
+                }
+
+                // Saved file list after synchronise
+
+                saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+
+            } else {
+                cout << "*** No files pulled from server ***\n" << endl;
+            }
+
         }
-
-        // Get non empty list
-
-        if (!filesToProcess.empty()) {
-            cout << "*** Pulling " << filesToProcess.size() << " files from server. ***" << endl;
-            pullFiles(ftpServer, optionData, localFiles, filesToProcess);
-        }
-
-        // Report disparity in number of files
-
-        if (localFiles.size() != remoteFiles.size()) {
-            cerr << "Not all files pulled from FTP server." << endl;
-        }
-
-        // Disconnect 
-
-        ftpServer.disconnect();
-
-        cout << "*** Files pulled from server ***\n" << endl;
-
-        // Make remote modified time the same as local to enable sync to work.
-
-        for (auto &file : localFiles) {
-            remoteFiles[convertFilePath(optionData, file.first)] = file.second;
-        }
-
-        // Saved file list after synchronise
-
-        saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
-
 
     }
 
@@ -268,75 +298,96 @@ namespace Escapement {
         CFTP ftpServer;
         FileInfoMap localFiles;
         FileInfoMap remoteFiles;
-        vector<string> filesToProcess;
-
-        cout << "*** Sychronizing Files ***" << endl;
-
+        FileList filesToProcess;
+        int totalFilesProcess { 0};
+            
         do {
+        
+            cout << "*** Sychronizing Files ***" << endl;
 
             // Connect to server
 
             connectToServer(ftpServer, optionData);
 
-            // Get local and remote file information for synchronise
+            // If connection successful synchronise
+            
+            if (ftpServer.isConnected()) {
 
-            cout << "*** Getting local/remote file lists... ***" << endl;
+                // Get local and remote file information for synchronise
 
-            loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+                cout << "*** Getting local/remote file lists... ***" << endl;
 
-            // PASS 1) Copy new/updated files to server
+                loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
 
-            cout << "*** Determining new/updated file list..***" << endl;
-                       
-            for (auto &file : localFiles) {
-                auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
-                if ((remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
-                    filesToProcess.push_back(file.first);
+                // PASS 1) Copy new/updated files to server
+
+                cout << "*** Determining new/updated file list..***" << endl;
+
+                for (auto &file : localFiles) {
+                    auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
+                    if ((remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
+                        filesToProcess.push_back(file.first);
+                    }
                 }
-            }
 
-            // Push non empty list
+                // Push non empty list
 
-            if (!filesToProcess.empty()) {
-                cout << "*** Transferring " << filesToProcess.size() << " new/updated files to server ***" << endl;
-                pushFiles(ftpServer, optionData, remoteFiles, filesToProcess);
-            }
-
-            // PASS 2) Remove any deleted local files/directories from server and local cache
-
-            filesToProcess.clear();
-            for (auto &file : remoteFiles) {
-                if (localFiles.find(convertFilePath(optionData, file.first)) == localFiles.end()) {
-                    filesToProcess.push_back(file.first);
+                if (!filesToProcess.empty()) {
+                    totalFilesProcess += filesToProcess.size();
+                    cout << "*** Transferring " << filesToProcess.size() << " new/updated files to server ***" << endl;
+                    pushFiles(ftpServer, optionData, remoteFiles, filesToProcess);
                 }
+
+                // PASS 2) Remove any deleted local files/directories from server and local cache
+
+                cout << "*** Determining local files deleted..***" << endl;
+
+                filesToProcess.clear();
+                for (auto &file : remoteFiles) {
+                    if (localFiles.find(convertFilePath(optionData, file.first)) == localFiles.end()) {
+                        filesToProcess.push_back(file.first);
+                    }
+                }
+
+                // Delete non empty list
+
+                if (!filesToProcess.empty()) {
+                    totalFilesProcess += filesToProcess.size();
+                    cout << "*** Removing " << filesToProcess.size() << " deleted local files from server ***" << endl;
+                    deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+                }
+
+                // Report disparity in number of files
+
+                if (localFiles.size() != remoteFiles.size()) {
+                    cerr << "FTP server seems to be out of sync with local directory." << endl;
+                    if (!ftpServer.isConnected()) {
+                        cerr << "FTP server disconnected unexpectedly." << endl;
+                    }
+                }
+
+                // Disconnect 
+
+                ftpServer.disconnect();
+
+                // Saved file list after synchronise
+
+                if (totalFilesProcess) {
+                    saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+                    cout << "*** Files synchronised with server ***\n" << endl;
+                } else {
+                   cout << "*** No files synchronised. ***\n" << endl;                 
+                }
+
             }
-
-            // Delete non empty list
-
-            if (!filesToProcess.empty()) {
-                cout << "*** Removing " << filesToProcess.size() << " deleted local files from server ***" << endl;
-                deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
-            }
-
-            // Report disparity in number of files
-
-            if (localFiles.size() != remoteFiles.size()) {
-                cerr << "FTP server seems to be out of sync with local directory." << endl;
-            }
-
-            // Disconnect 
-
-            ftpServer.disconnect();
-
-            cout << "*** Files synchronised with server ***\n" << endl;
-
-            // Saved file list after synchronise
-
-            saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
 
             // Wait poll interval (pollTime == 0 then one pass)
 
-            this_thread::sleep_for(chrono::minutes(optionData.pollTime));
+            if (optionData.pollTime) {
+                cout << "*** Waiting " << optionData.pollTime << " minutes for next synchronise... ***\n" << endl;
+                this_thread::sleep_for(chrono::minutes(optionData.pollTime));
+                localFiles.clear(); remoteFiles.clear(); filesToProcess.clear(); totalFilesProcess = 0;
+            }
 
         } while (optionData.pollTime);
 

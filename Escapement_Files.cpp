@@ -107,7 +107,7 @@ namespace Escapement_Files {
     // Get all remote file last modified date/time and return as FileInfoMap
     //
 
-    FileInfoMap getRemoteFileListDateTime(CFTP &ftpServer, const vector<string> &fileList) {
+    FileInfoMap getRemoteFileListDateTime(CFTP &ftpServer, const FileList &fileList) {
 
         FileInfoMap fileInfoMap;
 
@@ -125,7 +125,7 @@ namespace Escapement_Files {
     // Get all local file last modified date/time and return as FileInfoMap
     //
 
-    FileInfoMap getLocalFileListDateTime(const vector<string> &fileList) {
+    FileInfoMap getLocalFileListDateTime(const FileList &fileList) {
 
         FileInfoMap fileInfoMap;
 
@@ -165,7 +165,7 @@ namespace Escapement_Files {
     // Pull files from remote server to local directory
     //
     
-    void pullFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &localFiles, std::vector<string> &filesToTransfer) {
+    void pullFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &localFiles, FileList &filesToTransfer) {
         
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -198,7 +198,7 @@ namespace Escapement_Files {
     // Push files from local directory to server
     //
     
-    void pushFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToTransfer) {
+    void pushFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileList &filesToTransfer) {
   
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -232,7 +232,7 @@ namespace Escapement_Files {
     // Purge any remote files from server that have been deleted locally
     //
     
-    void deleteFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, std::vector<string> &filesToDelete) {
+    void deleteFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileList &filesToDelete) {
 
         if (!filesToDelete.empty()) {
 

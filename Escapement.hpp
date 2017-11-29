@@ -18,6 +18,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <deque>
 
 //
 // Antik Classes
@@ -44,7 +45,7 @@ namespace Escapement {
         std::string remoteDirectory;    // FTP remote directory for sync
         std::string localDirectory;     // Local directory for sync with server
         int pollTime { 0 };             // Poll time in minutes.
-        std::string fileCache;          // JSON tile to hold remote/local file info
+        std::string fileCache;          // JSON file to hold remote/local file info
         bool pullFromServer { false };  // == true then pulling files from server
         bool refreshCache { false };    // == true then refresh cache file
         bool noSSL { false };           // == true switch off default SSL connection
