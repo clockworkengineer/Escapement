@@ -125,7 +125,7 @@ namespace Escapement_CommandLine {
             // Display options and exit with success
 
             if (vm.count("help")) {
-                std::cout << "Escapement" << std::endl << commandLine << std::endl;
+                std::cout << "Escapement: FTP Server File Synchronisation Program" << std::endl << commandLine << std::endl;
                 exit(EXIT_SUCCESS);
             }
 
