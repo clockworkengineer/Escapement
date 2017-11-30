@@ -31,8 +31,8 @@
 namespace Escapement_FileCache {
 
     void loadEscapmentOptions(Escapement::EscapementOptions &optionData); 
-    void loadCachedFiles(const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);
-    void saveCachedFiles(const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles); 
+    void loadCachedFiles(Escapement::EscapementRunContext &runContext);
+    void saveCachedFiles(const Escapement::EscapementRunContext &runContext); 
 
 } // namespace Escapement_FileCache
 

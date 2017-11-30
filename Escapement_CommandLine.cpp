@@ -82,8 +82,7 @@ namespace Escapement_CommandLine {
                 ("local,l", po::value<std::string>(&optionData.localDirectory)->required(), "Local directory as base for restore")
                 ("cache,c", po::value<std::string>(&optionData.fileCache), "JSON file cache")
                 ("polltime,t", po::value<int>(&optionData.pollTime), "Server poll time in minutes")
-                ("pull,g", "Pull (get) files from server to local directory.")
-                ("refresh,f", "Re(f)resh JSON cache file from local/remote directories")
+                ("command,m", po::value<int>(&optionData.command), "Command: 0 (Synchronise), 1 (Pull) , 2 (Refresh cache)")
                 ("nossl,n", "Switch off ssl for connection")
                 ("override,v", "Override any command line options from cache file");
 
@@ -140,8 +139,13 @@ namespace Escapement_CommandLine {
                 }
             }
 
-            optionData.pullFromServer=vm.count("pull");
-            optionData.refreshCache=vm.count("refresh");
+            if (vm.count("command")) {
+                if ((vm["command"].as<int>() < kEscapementSynchronise) || 
+                    (vm["command"].as<int>() > kEscapementRefreshCache)) {
+                    throw po::error("Command must be 0, 1 or 2.");
+                }
+            }
+            
             optionData.noSSL=vm.count("nossl");
             optionData.override=vm.count("override");
             

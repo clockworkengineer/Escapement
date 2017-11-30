@@ -147,15 +147,15 @@ namespace Escapement_Files {
     // Get all remote files
     //
 
-    void getAllRemoteFiles(CFTP &ftpServer, const std::string &remoteDirectory, FileInfoMap &remoteFiles){
+    void getAllRemoteFiles(EscapementRunContext &runContext){
 
         vector<string> fileList;
              
-        listRemoteRecursive(ftpServer, remoteDirectory, fileList);
+        listRemoteRecursive(runContext.ftpServer, runContext.optionData.remoteDirectory, fileList);
 
-        remoteFiles = getRemoteFileListDateTime(ftpServer, fileList);
+        runContext.remoteFiles = getRemoteFileListDateTime(runContext.ftpServer, fileList);
 
-        if (remoteFiles.empty()) {
+        if (runContext.remoteFiles.empty()) {
             cout << "*** Remote server directory empty ***" << endl;
         }
 
@@ -165,7 +165,7 @@ namespace Escapement_Files {
     // Pull files from remote server to local directory
     //
     
-    void pullFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &localFiles, FileList &filesToTransfer) {
+    void pullFiles (EscapementRunContext &runContext, FileList &filesToTransfer) {
         
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -174,17 +174,17 @@ namespace Escapement_Files {
 
             sort(filesToTransfer.begin(), filesToTransfer.end()); // getFiles() requires list to be sorted
             
-            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(ftpServer, optionData.localDirectory, filesToTransfer, completionFn))};
+            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(runContext.ftpServer, runContext.optionData.localDirectory, filesToTransfer, completionFn))};
             
             if (!filesTransfered.empty()) {
                 for (auto &file : filesTransfered) {
-                    localFiles[file.first] = file.second;
+                    runContext.localFiles[file.first] = file.second;
                 }
             }
             
             if (filesToTransfer.size() != filesTransfered.size()) {
                 for (auto file : filesToTransfer) {
-                    if (!filesTransfered.count(convertFilePath(optionData, file))) {
+                    if (!filesTransfered.count(convertFilePath(runContext.optionData, file))) {
                         cout << "File [" << file << "] not transferred/created." << std::endl;                  
                     }
                 }
@@ -198,7 +198,7 @@ namespace Escapement_Files {
     // Push files from local directory to server
     //
     
-    void pushFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileList &filesToTransfer) {
+    void pushFiles (EscapementRunContext &runContext, FileList &filesToTransfer) {
   
         int fileCount { 0 };
         Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
@@ -207,18 +207,18 @@ namespace Escapement_Files {
             
             sort(filesToTransfer.begin(), filesToTransfer.end()); // Putfiles() requires list to be sorted
             
-            FileInfoMap filesTransfered { getRemoteFileListDateTime(ftpServer, putFiles(ftpServer, optionData.localDirectory, filesToTransfer, completionFn)) };
+            FileInfoMap filesTransfered { getRemoteFileListDateTime(runContext.ftpServer, putFiles(runContext.ftpServer, runContext.optionData.localDirectory, filesToTransfer, completionFn)) };
      
             if (!filesTransfered.empty()) {
                 cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
-                    remoteFiles[file.first] = file.second;
+                    runContext.remoteFiles[file.first] = file.second;
                 }
             }
 
             if (filesToTransfer.size() != filesTransfered.size()) {
                 for (auto file : filesToTransfer) {
-                    if (!filesTransfered.count(convertFilePath(optionData, file))) {
+                    if (!filesTransfered.count(convertFilePath(runContext.optionData, file))) {
                         cout << "File [" << file << "] not transferred/created." << std::endl;
                     }
                 }
@@ -232,7 +232,7 @@ namespace Escapement_Files {
     // Purge any remote files from server that have been deleted locally
     //
     
-    void deleteFiles (CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileList &filesToDelete) {
+    void deleteFiles (EscapementRunContext &runContext, FileList &filesToDelete) {
 
         if (!filesToDelete.empty()) {
 
@@ -241,12 +241,12 @@ namespace Escapement_Files {
             sort(filesToDelete.rbegin(), filesToDelete.rend()); 
 
             for (auto &file : filesToDelete) {
-                if (ftpServer.deleteFile(file) == 250) {
+                if (runContext.ftpServer.deleteFile(file) == 250) {
                     cout << "File [" << file << " ] removed from server." << endl;
-                    remoteFiles.erase(file);
-                } else if (ftpServer.removeDirectory(file) == 250) {
+                    runContext.remoteFiles.erase(file);
+                } else if (runContext.ftpServer.removeDirectory(file) == 250) {
                     cout << "Directory [" << file << " ] removed from server." << endl;
-                    remoteFiles.erase(file);
+                    runContext.remoteFiles.erase(file);
                 } else {
                     cerr << "File [" << file << " ] could not be removed from server." << endl;
                 }
@@ -260,29 +260,29 @@ namespace Escapement_Files {
     // Load local and remote file information before synchronise
     //
 
-    void loadFilesBeforeSynchronise(CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void loadFilesBeforeSynchronise(EscapementRunContext &runContext) {
 
         vector<string> fileList;
 
         // Load any cached file information
 
-        loadCachedFiles(optionData, remoteFiles, localFiles);
+        loadCachedFiles(runContext);
 
         // No cached remote files so get list from server
 
-        if (remoteFiles.empty()) {
-            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+        if (runContext.remoteFiles.empty()) {
+            getAllRemoteFiles(runContext);
         }
         
         // Create local file list (done at runtime to pickup changes).
 
         fileList.clear();
 
-        listLocalRecursive(optionData.localDirectory, fileList);
+        listLocalRecursive(runContext.optionData.localDirectory, fileList);
 
-        localFiles = getLocalFileListDateTime(fileList);
+        runContext.localFiles = getLocalFileListDateTime(fileList);
         
-        if (localFiles.empty()) {
+        if (runContext.localFiles.empty()) {
             cout << "*** Local directory empty ***" << endl;
         }
 
@@ -293,11 +293,11 @@ namespace Escapement_Files {
     // Save maps containing local and remote files after synchronise
     //
 
-    void saveFilesAfterSynchronise(CFTP &ftpServer, const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void saveFilesAfterSynchronise(const EscapementRunContext &runContext) {
 
         // Save any cached file information
 
-        saveCachedFiles(optionData, remoteFiles, localFiles);
+        saveCachedFiles(runContext);
 
     }
 

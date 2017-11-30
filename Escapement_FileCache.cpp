@@ -100,14 +100,14 @@ namespace Escapement_FileCache {
     // Load local and remote file information from cache
     //
 
-    void loadCachedFiles(const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void loadCachedFiles( EscapementRunContext &runContext) {
 
-        if (!optionData.fileCache.empty()) {
+        if (!runContext.optionData.fileCache.empty()) {
             
             json fileArray = json::array();
             json completeJSONFile;
 
-            ifstream jsonFileCacheStream { optionData.fileCache };
+            ifstream jsonFileCacheStream { runContext.optionData.fileCache };
 
             if (jsonFileCacheStream) {
 
@@ -119,7 +119,7 @@ namespace Escapement_FileCache {
                 if (findFiles != completeJSONFile.end()) {
                     fileArray = findFiles.value();
                     for (auto file : fileArray) {
-                        remoteFiles[file["Filename"]] = static_cast<CFTP::DateTime> (file["Modified"].get<string>());
+                        runContext.remoteFiles[file["Filename"]] = static_cast<CFTP::DateTime> (file["Modified"].get<string>());
                     }
                 }
 
@@ -133,24 +133,24 @@ namespace Escapement_FileCache {
     // Save  local and remote file information to cache
     //
 
-    void saveCachedFiles(const EscapementOptions &optionData, FileInfoMap &remoteFiles, FileInfoMap &localFiles) {
+    void saveCachedFiles(const EscapementRunContext &runContext) {
 
-        if (!optionData.fileCache.empty()) {
+        if (!runContext.optionData.fileCache.empty()) {
 
             json fileArray = json::array();
             json completeJSONFile;
             json escapementOptions;
             
-            escapementOptions["ServerName"] = optionData.serverName;
-            escapementOptions["ServerPort"] = optionData.serverPort;
-            escapementOptions["UserName"] = optionData.userName;
-            escapementOptions["UserPassword"] = optionData.userPassword;    
-            escapementOptions["RemoteDirectory"] = optionData.remoteDirectory;    
-            escapementOptions["LocalDirectory"] = optionData.localDirectory;  
+            escapementOptions["ServerName"] = runContext.optionData.serverName;
+            escapementOptions["ServerPort"] = runContext.optionData.serverPort;
+            escapementOptions["UserName"] = runContext.optionData.userName;
+            escapementOptions["UserPassword"] = runContext.optionData.userPassword;    
+            escapementOptions["RemoteDirectory"] = runContext.optionData.remoteDirectory;    
+            escapementOptions["LocalDirectory"] = runContext.optionData.localDirectory;  
          
             completeJSONFile["EscapementOptions"] = escapementOptions;
  
-            for (auto file : remoteFiles) {
+            for (auto file : runContext.remoteFiles) {
                 json fileJSON;
                 fileJSON["Filename"] = file.first;
                 fileJSON["Modified"] = static_cast<string> (file.second);
@@ -160,7 +160,7 @@ namespace Escapement_FileCache {
             completeJSONFile["RemoteFiles"] = fileArray;
             fileArray.clear();
 
-            for (auto file : localFiles) {
+            for (auto file : runContext.localFiles) {
                 json fileJSON;
                 fileJSON["Filename"] = file.first;
                 fileJSON["Modified"] = static_cast<string> (file.second);
@@ -169,7 +169,7 @@ namespace Escapement_FileCache {
 
             completeJSONFile["LocalFiles"] = fileArray;
 
-            ofstream jsonFileCacheStream(optionData.fileCache);
+            ofstream jsonFileCacheStream(runContext.optionData.fileCache);
 
             if (jsonFileCacheStream) {
                 jsonFileCacheStream << setw(4) << completeJSONFile << endl;

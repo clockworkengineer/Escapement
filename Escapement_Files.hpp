@@ -31,15 +31,15 @@
 
 namespace Escapement_Files {
 
-    void getAllRemoteFiles(Antik::FTP::CFTP &ftpServer, const std::string &remoteDirectory, Escapement::FileInfoMap &remoteFiles);
+    void getAllRemoteFiles(Escapement::EscapementRunContext &runContext);
     std::string convertFilePath(const Escapement::EscapementOptions &optionData, const std::string &filePath);
     Escapement::FileInfoMap getLocalFileListDateTime(const Antik::FTP::FileList &fileList);
     Escapement::FileInfoMap getRemoteFileListDateTime(Antik::FTP::CFTP &ftpServer, const Antik::FTP::FileList &fileList);
-    void pullFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &localFiles, Antik::FTP::FileList &filesToTransfer);
-    void pushFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Antik::FTP::FileList &filesToTransfer);
-    void deleteFiles (Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Antik::FTP::FileList &filesToDelete);
-    void loadFilesBeforeSynchronise(Antik::FTP::CFTP  &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);
-    void saveFilesAfterSynchronise(Antik::FTP::CFTP &ftpServer, const Escapement::EscapementOptions &optionData, Escapement::FileInfoMap &remoteFiles, Escapement::FileInfoMap &localFiles);   
+    void pullFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToTransfer);
+    void pushFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToTransfer);
+    void deleteFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToDelete);
+    void loadFilesBeforeSynchronise(Escapement::EscapementRunContext &runContext);
+    void saveFilesAfterSynchronise(const Escapement::EscapementRunContext &runContext);   
 
 } // namespace Escapement_Files
 

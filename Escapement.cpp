@@ -29,8 +29,7 @@
 //   -l [ --local ] arg     Local directory
 //   -t [ --polltime ] arg  Server poll time in minutes
 //   -c [ --cache ] arg     JSON filename cache
-//   -g [ --pull ]          Pull (get) files from server to local directory.
-//   -f [ --refresh ]       Re(f)resh json cache file from local and remote directories"
+//   -m [ --command ] arg   Command: 0 (Synchronise), 1 (Pull) , 2 (Refresh cache)
 //   -n [ --nossl ]         Switch off ssl for connection
 //
 // Dependencies:
@@ -111,52 +110,52 @@ namespace Escapement {
     //
     // Set up FTP parameters and connect to server.
     //
-    
-    static void connectToServer(CFTP &ftpServer, EscapementOptions &optionData) {
+
+    static void connectToServer(EscapementRunContext &runContext) {
 
         try {
 
             // Set server and port
 
-            ftpServer.setServerAndPort(optionData.serverName, optionData.serverPort);
+            runContext.ftpServer.setServerAndPort(runContext.optionData.serverName, runContext.optionData.serverPort);
 
             // Set FTP account user name and password
 
-            ftpServer.setUserAndPassword(optionData.userName, optionData.userPassword);
+            runContext.ftpServer.setUserAndPassword(runContext.optionData.userName, runContext.optionData.userPassword);
 
             // Set SSL
 
-            ftpServer.setSslEnabled(!optionData.noSSL);
+            runContext.ftpServer.setSslEnabled(!runContext.optionData.noSSL);
 
             // Connect
 
-            if (ftpServer.connect() != 230) {
-                throw CFTP::Exception("Unable to connect status returned = " + ftpServer.getCommandResponse());
+            if (runContext.ftpServer.connect() != 230) {
+                throw CFTP::Exception("Unable to connect status returned = " + runContext.ftpServer.getCommandResponse());
             }
 
             // Binary transfer more on
 
-            ftpServer.setBinaryTransfer(true);
+            runContext.ftpServer.setBinaryTransfer(true);
 
             // Remote directory does not exist so create
 
-            if (!ftpServer.fileExists(optionData.remoteDirectory)) {
-                makeRemotePath(ftpServer, optionData.remoteDirectory);
-                if (!ftpServer.fileExists(optionData.remoteDirectory)) {
-                    ftpServer.disconnect();
-                    throw CFTP::Exception("Remote FTP server directory " + optionData.remoteDirectory + " could not be created.");
+            if (!runContext.ftpServer.fileExists(runContext.optionData.remoteDirectory)) {
+                makeRemotePath(runContext.ftpServer, runContext.optionData.remoteDirectory);
+                if (!runContext.ftpServer.fileExists(runContext.optionData.remoteDirectory)) {
+                    runContext.ftpServer.disconnect();
+                    throw CFTP::Exception("Remote FTP server directory " + runContext.optionData.remoteDirectory + " could not be created.");
                 }
             }
 
             // Overwrite remote directory with server path for it
 
-            ftpServer.changeWorkingDirectory(optionData.remoteDirectory);
-            ftpServer.getCurrentWoringDirectory(optionData.remoteDirectory);
+            runContext.ftpServer.changeWorkingDirectory(runContext.optionData.remoteDirectory);
+            runContext.ftpServer.getCurrentWoringDirectory(runContext.optionData.remoteDirectory);
 
-            cout << "*** Current Working Directory [" << optionData.remoteDirectory << "] ***" << endl;
+            cout << "*** Current Working Directory [" << runContext.optionData.remoteDirectory << "] ***" << endl;
 
         } catch (...) {
-             cerr << "Escapement error: Failed to connect to server." << endl;         
+            cerr << "Escapement error: Failed to connect to server." << endl;
         }
 
     }
@@ -165,85 +164,79 @@ namespace Escapement {
     // Refresh local file cache from local directory and local server.
     //
 
-    static void refreshFileCache(EscapementOptions &optionData) {
+    static void refreshFileCache(EscapementRunContext &runContext) {
 
-        CFTP ftpServer;
-        FileInfoMap localFiles;
-        FileInfoMap remoteFiles;
         FileList fileList;
 
         cout << "*** Refresh file cache ***" << endl;
 
         // Connect to server
 
-        connectToServer(ftpServer, optionData);
+        connectToServer(runContext);
 
         // If connection successful refresh file list cache
 
-        if (ftpServer.isConnected()) {
+        if (runContext.ftpServer.isConnected()) {
 
             // Get all remote file information for pull
 
             cout << "*** Refreshing file list from remote directory... ***" << endl;
 
-            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+            getAllRemoteFiles(runContext);
 
             cout << "*** Refreshing file list from local directory... ***" << endl;
 
-            listLocalRecursive(optionData.localDirectory, fileList);
-            localFiles = getLocalFileListDateTime(fileList);
+            listLocalRecursive(runContext.optionData.localDirectory, fileList);
+            runContext.localFiles = getLocalFileListDateTime(fileList);
 
             // Report disparity in number of files
 
-            if (localFiles.size() != remoteFiles.size()) {
+            if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
                 cerr << "Not all files pulled from FTP server." << endl;
-                if (!ftpServer.isConnected()) {
+                if (!runContext.ftpServer.isConnected()) {
                     cerr << "FTP server disconnected unexpectedly." << endl;
                 }
             }
 
             // Disconnect from server
 
-            ftpServer.disconnect();
+            runContext.ftpServer.disconnect();
 
             cout << "*** File cache refreshed ***\n" << endl;
 
-            // Saved file list after synchronise
+            // Save refreshed file lists
 
-            saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+            saveFilesAfterSynchronise(runContext);
 
-        } 
-        
+        }
+
     }
 
     //
     // Pull files from server.
     //
 
-    static void pullFilesFromServer(EscapementOptions &optionData) {
+    static void pullFilesFromServer(EscapementRunContext &runContext) {
 
-        CFTP ftpServer;
-        FileInfoMap localFiles;
-        FileInfoMap remoteFiles;
         FileList filesToProcess;
 
         cout << "*** Pulling remote Files ***" << endl;
 
         // Connect to server
 
-        connectToServer(ftpServer, optionData);
+        connectToServer(runContext);
 
         // If connection successful pull files from server
 
-        if (ftpServer.isConnected()) {
+        if (runContext.ftpServer.isConnected()) {
 
             // Get all remote file information for pull
 
             cout << "*** Getting file list from remote directory... ***" << endl;
 
-            getAllRemoteFiles(ftpServer, optionData.remoteDirectory, remoteFiles);
+            getAllRemoteFiles(runContext);
 
-            for (auto &file : remoteFiles) {
+            for (auto &file : runContext.remoteFiles) {
                 filesToProcess.push_back(file.first);
             }
 
@@ -251,21 +244,21 @@ namespace Escapement {
 
             if (!filesToProcess.empty()) {
                 cout << "*** Pulling " << filesToProcess.size() << " files from server. ***" << endl;
-                pullFiles(ftpServer, optionData, localFiles, filesToProcess);
+                pullFiles(runContext, filesToProcess);
             }
 
             // Report disparity in number of files
 
-            if (localFiles.size() != remoteFiles.size()) {
+            if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
                 cerr << "Not all files pulled from FTP server." << endl;
-                if (!ftpServer.isConnected()) {
+                if (!runContext.ftpServer.isConnected()) {
                     cerr << "FTP server disconnected unexpectedly." << endl;
                 }
             }
 
             // Disconnect 
 
-            ftpServer.disconnect();
+            runContext.ftpServer.disconnect();
 
             if (!filesToProcess.empty()) {
 
@@ -273,13 +266,13 @@ namespace Escapement {
 
                 // Make remote modified time the same as local to enable sync to work.
 
-                for (auto &file : localFiles) {
-                    remoteFiles[convertFilePath(optionData, file.first)] = file.second;
+                for (auto &file : runContext.localFiles) {
+                    runContext.remoteFiles[convertFilePath(runContext.optionData, file.first)] = file.second;
                 }
 
-                // Saved file list after synchronise
+                // Saved file list after pull
 
-                saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+                saveFilesAfterSynchronise(runContext);
 
             } else {
                 cout << "*** No files pulled from server ***\n" << endl;
@@ -293,39 +286,36 @@ namespace Escapement {
     // Synchronise files with server.
     //
 
-    static void sychroniseFiles(EscapementOptions &optionData) {
+    static void sychroniseFiles(EscapementRunContext &runContext) {
 
-        CFTP ftpServer;
-        FileInfoMap localFiles;
-        FileInfoMap remoteFiles;
         FileList filesToProcess;
-        int totalFilesProcess { 0};
-            
+        int totalFilesProcess{ 0};
+
         do {
-        
+
             cout << "*** Sychronizing Files ***" << endl;
 
             // Connect to server
 
-            connectToServer(ftpServer, optionData);
+            connectToServer(runContext);
 
             // If connection successful synchronise
-            
-            if (ftpServer.isConnected()) {
+
+            if (runContext.ftpServer.isConnected()) {
 
                 // Get local and remote file information for synchronise
 
                 cout << "*** Getting local/remote file lists... ***" << endl;
 
-                loadFilesBeforeSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+                loadFilesBeforeSynchronise(runContext);
 
                 // PASS 1) Copy new/updated files to server
 
                 cout << "*** Determining new/updated file list..***" << endl;
 
-                for (auto &file : localFiles) {
-                    auto remoteFile = remoteFiles.find(convertFilePath(optionData, file.first));
-                    if ((remoteFile == remoteFiles.end()) || (remoteFile->second < file.second)) {
+                for (auto &file : runContext.localFiles) {
+                    auto remoteFile = runContext.remoteFiles.find(convertFilePath(runContext.optionData, file.first));
+                    if ((remoteFile == runContext.remoteFiles.end()) || (remoteFile->second < file.second)) {
                         filesToProcess.push_back(file.first);
                     }
                 }
@@ -335,7 +325,7 @@ namespace Escapement {
                 if (!filesToProcess.empty()) {
                     totalFilesProcess += filesToProcess.size();
                     cout << "*** Transferring " << filesToProcess.size() << " new/updated files to server ***" << endl;
-                    pushFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+                    pushFiles(runContext, filesToProcess);
                 }
 
                 // PASS 2) Remove any deleted local files/directories from server and local cache
@@ -343,8 +333,8 @@ namespace Escapement {
                 cout << "*** Determining local files deleted..***" << endl;
 
                 filesToProcess.clear();
-                for (auto &file : remoteFiles) {
-                    if (localFiles.find(convertFilePath(optionData, file.first)) == localFiles.end()) {
+                for (auto &file : runContext.remoteFiles) {
+                    if (runContext.localFiles.find(convertFilePath(runContext.optionData, file.first)) == runContext.localFiles.end()) {
                         filesToProcess.push_back(file.first);
                     }
                 }
@@ -354,42 +344,45 @@ namespace Escapement {
                 if (!filesToProcess.empty()) {
                     totalFilesProcess += filesToProcess.size();
                     cout << "*** Removing " << filesToProcess.size() << " deleted local files from server ***" << endl;
-                    deleteFiles(ftpServer, optionData, remoteFiles, filesToProcess);
+                    deleteFiles(runContext, filesToProcess);
                 }
 
                 // Report disparity in number of files
 
-                if (localFiles.size() != remoteFiles.size()) {
+                if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
                     cerr << "FTP server seems to be out of sync with local directory." << endl;
-                    if (!ftpServer.isConnected()) {
+                    if (!runContext.ftpServer.isConnected()) {
                         cerr << "FTP server disconnected unexpectedly." << endl;
                     }
                 }
 
                 // Disconnect 
 
-                ftpServer.disconnect();
+                runContext.ftpServer.disconnect();
 
                 // Saved file list after synchronise
 
                 if (totalFilesProcess) {
-                    saveFilesAfterSynchronise(ftpServer, optionData, remoteFiles, localFiles);
+                    saveFilesAfterSynchronise(runContext);
                     cout << "*** Files synchronised with server ***\n" << endl;
                 } else {
-                   cout << "*** No files synchronised. ***\n" << endl;                 
+                    cout << "*** No files synchronised. ***\n" << endl;
                 }
 
             }
 
             // Wait poll interval (pollTime == 0 then one pass)
 
-            if (optionData.pollTime) {
-                cout << "*** Waiting " << optionData.pollTime << " minutes for next synchronise... ***\n" << endl;
-                this_thread::sleep_for(chrono::minutes(optionData.pollTime));
-                localFiles.clear(); remoteFiles.clear(); filesToProcess.clear(); totalFilesProcess = 0;
+            if (runContext.optionData.pollTime) {
+                cout << "*** Waiting " << runContext.optionData.pollTime << " minutes for next synchronise... ***\n" << endl;
+                this_thread::sleep_for(chrono::minutes(runContext.optionData.pollTime));
+                runContext.localFiles.clear();
+                runContext.remoteFiles.clear();
+                filesToProcess.clear();
+                totalFilesProcess = 0;
             }
 
-        } while (optionData.pollTime);
+        } while (runContext.optionData.pollTime);
 
     }
 
@@ -401,24 +394,28 @@ namespace Escapement {
 
         try {
 
-            EscapementOptions optionData;
+            EscapementRunContext runContext;
 
             // Read in command line parameters and process
 
-            optionData = fetchCommandLineOptions(argc, argv);
+            runContext.optionData = fetchCommandLineOptions(argc, argv);
 
             // Display run parameters
 
-            cout << "Server [" << optionData.serverName << "]" << " Port [" << optionData.serverPort << "]" << " User [" << optionData.userName << "]";
-            cout << " Remote Directory [" << optionData.remoteDirectory << "]" << " Local Directory [" << optionData.localDirectory << "]";
-            cout << " SSL [" << ((optionData.noSSL) ? "Off" : "On") << "]\n" << endl;
+            cout << "Server [" << runContext.optionData.serverName << "]" << " Port [" << runContext.optionData.serverPort << "]" << " User [" << runContext.optionData.userName << "]";
+            cout << " Remote Directory [" << runContext.optionData.remoteDirectory << "]" << " Local Directory [" << runContext.optionData.localDirectory << "]";
+            cout << " SSL [" << ((runContext.optionData.noSSL) ? "Off" : "On") << "]\n" << endl;
 
-            if (optionData.refreshCache) {          // Refresh file cache
-                refreshFileCache(optionData);
-            } else if (optionData.pullFromServer) {
-                pullFilesFromServer(optionData);    // Pull files
-            } else {
-                sychroniseFiles(optionData);        // Synchronise files
+            switch (runContext.optionData.command) {
+                case kEscapementSynchronise:
+                    sychroniseFiles(runContext);
+                    break;
+                case kEscapementPullFiles:
+                    pullFilesFromServer(runContext);
+                    break;
+                case kEscapementRefreshCache:
+                    refreshFileCache(runContext);
+                    break;
             }
 
         //
