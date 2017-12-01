@@ -166,8 +166,6 @@ namespace Escapement {
 
     static void refreshFileCache(EscapementRunContext &runContext) {
 
-        FileList fileList;
-
         cout << "*** Refresh file cache ***" << endl;
 
         // Connect to server
@@ -186,8 +184,7 @@ namespace Escapement {
 
             cout << "*** Refreshing file list from local directory... ***" << endl;
 
-            listLocalRecursive(runContext.optionData.localDirectory, fileList);
-            runContext.localFiles = getLocalFileListDateTime(fileList);
+            getAllLocalFiles(runContext);
 
             // Report disparity in number of files
 
@@ -218,8 +215,6 @@ namespace Escapement {
 
     static void pullFilesFromServer(EscapementRunContext &runContext) {
 
-        FileList filesToProcess;
-
         cout << "*** Pulling remote Files ***" << endl;
 
         // Connect to server
@@ -237,14 +232,14 @@ namespace Escapement {
             getAllRemoteFiles(runContext);
 
             for (auto &file : runContext.remoteFiles) {
-                filesToProcess.push_back(file.first);
+                runContext.filesToProcess.push_back(file.first);
             }
 
             // Get non empty list
 
-            if (!filesToProcess.empty()) {
-                cout << "*** Pulling " << filesToProcess.size() << " files from server. ***" << endl;
-                pullFiles(runContext, filesToProcess);
+            if (!runContext.filesToProcess.empty()) {
+                cout << "*** Pulling " << runContext.filesToProcess.size() << " files from server. ***" << endl;
+                pullFiles(runContext);
             }
 
             // Report disparity in number of files
@@ -260,7 +255,7 @@ namespace Escapement {
 
             runContext.ftpServer.disconnect();
 
-            if (!filesToProcess.empty()) {
+            if (!runContext.filesToProcess.empty()) {
 
                 cout << "*** Files pulled from server ***\n" << endl;
 
@@ -288,9 +283,6 @@ namespace Escapement {
 
     static void sychroniseFiles(EscapementRunContext &runContext) {
 
-        FileList filesToProcess;
-        int totalFilesProcess{ 0};
-
         do {
 
             cout << "*** Sychronizing Files ***" << endl;
@@ -316,35 +308,35 @@ namespace Escapement {
                 for (auto &file : runContext.localFiles) {
                     auto remoteFile = runContext.remoteFiles.find(convertFilePath(runContext.optionData, file.first));
                     if ((remoteFile == runContext.remoteFiles.end()) || (remoteFile->second < file.second)) {
-                        filesToProcess.push_back(file.first);
+                        runContext.filesToProcess.push_back(file.first);
                     }
                 }
 
                 // Push non empty list
 
-                if (!filesToProcess.empty()) {
-                    totalFilesProcess += filesToProcess.size();
-                    cout << "*** Transferring " << filesToProcess.size() << " new/updated files to server ***" << endl;
-                    pushFiles(runContext, filesToProcess);
+                if (!runContext.filesToProcess.empty()) {
+                    runContext.totalFilesProcessed += runContext.filesToProcess.size();
+                    cout << "*** Transferring " << runContext.filesToProcess.size() << " new/updated files to server ***" << endl;
+                    pushFiles(runContext);
                 }
 
                 // PASS 2) Remove any deleted local files/directories from server and local cache
 
                 cout << "*** Determining local files deleted..***" << endl;
 
-                filesToProcess.clear();
+                runContext.filesToProcess.clear();
                 for (auto &file : runContext.remoteFiles) {
                     if (runContext.localFiles.find(convertFilePath(runContext.optionData, file.first)) == runContext.localFiles.end()) {
-                        filesToProcess.push_back(file.first);
+                        runContext.filesToProcess.push_back(file.first);
                     }
                 }
 
                 // Delete non empty list
 
-                if (!filesToProcess.empty()) {
-                    totalFilesProcess += filesToProcess.size();
-                    cout << "*** Removing " << filesToProcess.size() << " deleted local files from server ***" << endl;
-                    deleteFiles(runContext, filesToProcess);
+                if (!runContext.filesToProcess.empty()) {
+                    runContext.totalFilesProcessed += runContext.filesToProcess.size();
+                    cout << "*** Removing " << runContext.filesToProcess.size() << " deleted local files from server ***" << endl;
+                    deleteFiles(runContext);
                 }
 
                 // Report disparity in number of files
@@ -362,7 +354,7 @@ namespace Escapement {
 
                 // Saved file list after synchronise
 
-                if (totalFilesProcess) {
+                if (runContext.totalFilesProcessed) {
                     saveFilesAfterSynchronise(runContext);
                     cout << "*** Files synchronised with server ***\n" << endl;
                 } else {
@@ -378,8 +370,8 @@ namespace Escapement {
                 this_thread::sleep_for(chrono::minutes(runContext.optionData.pollTime));
                 runContext.localFiles.clear();
                 runContext.remoteFiles.clear();
-                filesToProcess.clear();
-                totalFilesProcess = 0;
+                runContext.filesToProcess.clear();
+                runContext.totalFilesProcessed = 0;
             }
 
         } while (runContext.optionData.pollTime);

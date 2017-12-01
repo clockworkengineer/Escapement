@@ -32,12 +32,11 @@
 namespace Escapement_Files {
 
     void getAllRemoteFiles(Escapement::EscapementRunContext &runContext);
+    void getAllLocalFiles(Escapement::EscapementRunContext &runContext);
     std::string convertFilePath(const Escapement::EscapementOptions &optionData, const std::string &filePath);
-    Escapement::FileInfoMap getLocalFileListDateTime(const Antik::FTP::FileList &fileList);
-    Escapement::FileInfoMap getRemoteFileListDateTime(Antik::FTP::CFTP &ftpServer, const Antik::FTP::FileList &fileList);
-    void pullFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToTransfer);
-    void pushFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToTransfer);
-    void deleteFiles (Escapement::EscapementRunContext &runContext, Antik::FTP::FileList &filesToDelete);
+    void pullFiles (Escapement::EscapementRunContext &runContext);
+    void pushFiles (Escapement::EscapementRunContext &runContext);
+    void deleteFiles (Escapement::EscapementRunContext &runContext);
     void loadFilesBeforeSynchronise(Escapement::EscapementRunContext &runContext);
     void saveFilesAfterSynchronise(const Escapement::EscapementRunContext &runContext);   
 
