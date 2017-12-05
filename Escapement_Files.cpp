@@ -77,7 +77,23 @@ namespace Escapement_Files {
     // ===============
     // LOCAL FUNCTIONS
     // ===============
+    
+    //
+    // Return true if file is remote
+    //
 
+    static inline bool isRemoteFile(const EscapementOptions &optionData, const string &filePath) {
+        return (filePath.find(optionData.remoteDirectory) == 0);
+    }
+
+    //
+    // Return true if file is local
+    //
+    
+    static inline bool isLocalFile(const EscapementOptions &optionData, const string &filePath) {
+        return (filePath.find(optionData.localDirectory) == 0);
+    }
+       
     //
     // Get all remote file last modified date/time and return as FileInfoMap
     //
@@ -130,17 +146,16 @@ namespace Escapement_Files {
         
         fs::path convertedPath;
         
-        if (filePath.find(optionData.localDirectory) == 0) {
+        if (isLocalFile(optionData, filePath)) {
             convertedPath = optionData.remoteDirectory + kServerPathSep + filePath.substr(optionData.localDirectory.size());
-            return (convertedPath.normalize().string());
-        } else  if (filePath.find(optionData.remoteDirectory) == 0) {
+        } else  if (isRemoteFile(optionData, filePath)) {
             convertedPath = optionData.localDirectory + filePath.substr(optionData.remoteDirectory.size());
-            return (convertedPath.normalize().string());
         } else {
             std::cerr << "Error: Cannot convert file path " << filePath << std::endl;
-            return(filePath);
         }
         
+        return (convertedPath.normalize().string());
+                   
     }
     
     //
@@ -191,12 +206,15 @@ namespace Escapement_Files {
 
             sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // getFiles() requires list to be sorted
             
-            FileInfoMap filesTransfered {getLocalFileListDateTime(getFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn))};
+            FileList successList { getFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn, true) };
+            
+            FileInfoMap filesTransfered {getLocalFileListDateTime(successList)};
             
             if (!filesTransfered.empty()) {
                 for (auto &file : filesTransfered) {
                     runContext.localFiles[file.first] = file.second;
                 }
+                runContext.totalFilesProcessed += filesTransfered.size();
             }
             
             if (runContext.filesToProcess.size() != filesTransfered.size()) {
@@ -224,13 +242,16 @@ namespace Escapement_Files {
             
             sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // Putfiles() requires list to be sorted
             
-            FileInfoMap filesTransfered { getRemoteFileListDateTime(runContext.ftpServer, putFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn)) };
+            FileList successList {  putFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn, true) };
+
+            FileInfoMap filesTransfered { getRemoteFileListDateTime(runContext.ftpServer, successList ) };
      
             if (!filesTransfered.empty()) {
                 cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
                 for (auto &file : filesTransfered) {
                     runContext.remoteFiles[file.first] = file.second;
                 }
+                runContext.totalFilesProcessed += filesTransfered.size();
             }
 
             if (runContext.filesToProcess.size() != filesTransfered.size()) {
@@ -261,9 +282,11 @@ namespace Escapement_Files {
                 if (runContext.ftpServer.deleteFile(file) == 250) {
                     cout << "File [" << file << " ] removed from server." << endl;
                     runContext.remoteFiles.erase(file);
+                    runContext.totalFilesProcessed++;
                 } else if (runContext.ftpServer.removeDirectory(file) == 250) {
                     cout << "Directory [" << file << " ] removed from server." << endl;
                     runContext.remoteFiles.erase(file);
+                    runContext.totalFilesProcessed++;
                 } else {
                     cerr << "File [" << file << " ] could not be removed from server." << endl;
                 }

@@ -31,6 +31,7 @@
 //   -c [ --cache ] arg     JSON filename cache
 //   -m [ --command ] arg   Command: 0 (Synchronise), 1 (Pull) , 2 (Refresh cache)
 //   -n [ --nossl ]         Switch off ssl for connection
+//   -v [ --override ]      Override any command line options from cache file
 //
 // Dependencies:
 //
@@ -265,7 +266,7 @@ namespace Escapement {
                     runContext.remoteFiles[convertFilePath(runContext.optionData, file.first)] = file.second;
                 }
 
-                // Saved file list after pull
+                // Save file lists after pull
 
                 saveFilesAfterSynchronise(runContext);
 
@@ -315,7 +316,6 @@ namespace Escapement {
                 // Push non empty list
 
                 if (!runContext.filesToProcess.empty()) {
-                    runContext.totalFilesProcessed += runContext.filesToProcess.size();
                     cout << "*** Transferring " << runContext.filesToProcess.size() << " new/updated files to server ***" << endl;
                     pushFiles(runContext);
                 }
@@ -334,7 +334,6 @@ namespace Escapement {
                 // Delete non empty list
 
                 if (!runContext.filesToProcess.empty()) {
-                    runContext.totalFilesProcessed += runContext.filesToProcess.size();
                     cout << "*** Removing " << runContext.filesToProcess.size() << " deleted local files from server ***" << endl;
                     deleteFiles(runContext);
                 }
@@ -410,9 +409,6 @@ namespace Escapement {
                     break;
             }
 
-        //
-        // Catch any errors
-        //    
 
         } catch (const CFTP::Exception &e) {
             exitWithError(e.what());
