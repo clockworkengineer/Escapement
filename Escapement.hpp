@@ -71,7 +71,7 @@ namespace Escapement {
         Antik::FTP::CFTP ftpServer;             // FTP server object
         FileInfoMap localFiles;                 // List of local files
         FileInfoMap remoteFiles;                // List of remote files
-        Antik::FTP::FileList filesToProcess;    // List of files to be processed
+        Antik::FileList filesToProcess;         // List of files to be processed
         int totalFilesProcessed { 0 };          // Total files processed
     };
 

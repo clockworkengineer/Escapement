@@ -13,9 +13,9 @@
 //
 // Module: Escapement_Files
 //
-// Description:
+// Description: Escapement file handling code.
 // 
-// Dependencies: Escapement file handling code.
+// Dependencies: 
 // 
 // C11++              : Use of C11++ features.
 // Misc.              : Lohmann JSON library
@@ -69,7 +69,8 @@ namespace Escapement_Files {
     using namespace Escapement;
     using namespace Escapement_FileCache;
     using namespace Escapement_CommandLine;
-            
+    
+    using namespace Antik;
     using namespace Antik::FTP;
    
     namespace fs = boost::filesystem;
@@ -147,7 +148,7 @@ namespace Escapement_Files {
         fs::path convertedPath;
         
         if (isLocalFile(optionData, filePath)) {
-            convertedPath = optionData.remoteDirectory + kServerPathSep + filePath.substr(optionData.localDirectory.size());
+            convertedPath = optionData.remoteDirectory + Antik::kServerPathSep + filePath.substr(optionData.localDirectory.size());
         } else  if (isRemoteFile(optionData, filePath)) {
             convertedPath = optionData.localDirectory + filePath.substr(optionData.remoteDirectory.size());
         } else {
@@ -200,7 +201,7 @@ namespace Escapement_Files {
     void pullFiles (EscapementRunContext &runContext) {
         
         int fileCount { 0 };
-        Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
+        FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pulled file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
         
         if (!runContext.filesToProcess.empty()) {
 
@@ -236,7 +237,7 @@ namespace Escapement_Files {
     void pushFiles (EscapementRunContext &runContext) {
   
         int fileCount { 0 };
-        Antik::FTP::FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
+        FileCompletionFn completionFn = [&fileCount] (std::string fileName) {std::cout << "Pushed file No " << ++fileCount << " [" << fileName << "]" << std::endl;};
                
         if (!runContext.filesToProcess.empty()) {
             
