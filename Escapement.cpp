@@ -36,7 +36,7 @@
 // Dependencies:
 //
 // C11++              : Use of C11++ features.
-// Antikythera Classes: CFTP, CSocket. 
+// Antik Classes      : CFTP, CSocket, CFile. 
 // Linux              : Target platform
 // Boost              : File system, program option, iterator.
 // Misc.              : Lohmann JSON library.
@@ -53,26 +53,19 @@
 #include <iostream>
 
 //
+// Antik Classes
+//
+
+#include "FTPUtil.hpp"
+#include "CFile.hpp"
+
+//
 // Program components.
 //
 
 #include "Escapement.hpp"
 #include "Escapement_CommandLine.hpp"
 #include "Escapement_Files.hpp"
-
-//
-// Antik Classes
-//
-
-#include "FTPUtil.hpp"
-
-//
-// Boost file system library
-//
-
-#include <boost/filesystem.hpp>
-
-namespace fs = boost::filesystem;
 
 // =========
 // NAMESPACE
@@ -84,12 +77,11 @@ namespace Escapement {
     // IMPORTS
     // =======
 
-    using namespace std;
+    using namespace Antik::FTP;
+    using namespace Antik::File;
 
     using namespace Escapement_CommandLine;
     using namespace Escapement_Files;
-
-    using namespace Antik::FTP;
 
     // ===============
     // LOCAL FUNCTIONS
@@ -99,11 +91,11 @@ namespace Escapement {
     // Exit with error message/status.
     //
 
-    static void exitWithError(string errMsg) {
+    static void exitWithError(std::string errMsg) {
 
         // Display error and exit.
 
-        cerr << errMsg << endl;
+        std::cerr << errMsg << std::endl;
         exit(EXIT_FAILURE);
 
     }
@@ -153,10 +145,10 @@ namespace Escapement {
             runContext.ftpServer.changeWorkingDirectory(runContext.optionData.remoteDirectory);
             runContext.ftpServer.getCurrentWoringDirectory(runContext.optionData.remoteDirectory);
 
-            cout << "*** Current Working Directory [" << runContext.optionData.remoteDirectory << "] ***" << endl;
+            std::cout << "*** Current Working Directory [" << runContext.optionData.remoteDirectory << "] ***" << std::endl;
 
         } catch (...) {
-            cerr << "Escapement error: Failed to connect to server." << endl;
+            std::cerr << "Escapement error: Failed to connect to server." << std::endl;
         }
 
     }
@@ -167,7 +159,7 @@ namespace Escapement {
 
     static void refreshFileCache(EscapementRunContext &runContext) {
 
-        cout << "*** Refresh file cache ***" << endl;
+        std::cout << "*** Refresh file cache ***" << std::endl;
 
         // Connect to server
 
@@ -179,20 +171,20 @@ namespace Escapement {
 
             // Get all remote file information for pull
 
-            cout << "*** Refreshing file list from remote directory... ***" << endl;
+            std::cout << "*** Refreshing file list from remote directory... ***" << std::endl;
 
             getAllRemoteFiles(runContext);
 
-            cout << "*** Refreshing file list from local directory... ***" << endl;
+            std::cout << "*** Refreshing file list from local directory... ***" << std::endl;
 
             getAllLocalFiles(runContext);
 
             // Report disparity in number of files
 
             if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
-                cerr << "Not all files pulled from FTP server." << endl;
+                std::cerr << "Not all files pulled from FTP server." << std::endl;
                 if (!runContext.ftpServer.isConnected()) {
-                    cerr << "FTP server disconnected unexpectedly." << endl;
+                    std::cerr << "FTP server disconnected unexpectedly." << std::endl;
                 }
             }
 
@@ -200,7 +192,7 @@ namespace Escapement {
 
             runContext.ftpServer.disconnect();
 
-            cout << "*** File cache refreshed ***\n" << endl;
+            std::cout << "*** File cache refreshed ***\n" << std::endl;
 
             // Save refreshed file lists
 
@@ -216,7 +208,7 @@ namespace Escapement {
 
     static void pullFilesFromServer(EscapementRunContext &runContext) {
 
-        cout << "*** Pulling remote Files ***" << endl;
+        std::cout << "*** Pulling remote Files ***" << std::endl;
 
         // Connect to server
 
@@ -228,7 +220,7 @@ namespace Escapement {
 
             // Get all remote file information for pull
 
-            cout << "*** Getting file list from remote directory... ***" << endl;
+            std::cout << "*** Getting file list from remote directory... ***" << std::endl;
 
             getAllRemoteFiles(runContext);
 
@@ -239,16 +231,16 @@ namespace Escapement {
             // Get non empty list
 
             if (!runContext.filesToProcess.empty()) {
-                cout << "*** Pulling " << runContext.filesToProcess.size() << " files from server. ***" << endl;
+                std::cout << "*** Pulling " << runContext.filesToProcess.size() << " files from server. ***" << std::endl;
                 pullFiles(runContext);
             }
 
             // Report disparity in number of files
 
             if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
-                cerr << "Not all files pulled from FTP server." << endl;
+                std::cerr << "Not all files pulled from FTP server." << std::endl;
                 if (!runContext.ftpServer.isConnected()) {
-                    cerr << "FTP server disconnected unexpectedly." << endl;
+                    std::cerr << "FTP server disconnected unexpectedly." << std::endl;
                 }
             }
 
@@ -258,7 +250,7 @@ namespace Escapement {
 
             if (!runContext.filesToProcess.empty()) {
 
-                cout << "*** Files pulled from server ***\n" << endl;
+                std::cout << "*** Files pulled from server ***\n" << std::endl;
 
                 // Make remote modified time the same as local to enable sync to work.
 
@@ -271,7 +263,7 @@ namespace Escapement {
                 saveFilesAfterSynchronise(runContext);
 
             } else {
-                cout << "*** No files pulled from server ***\n" << endl;
+                std::cout << "*** No files pulled from server ***\n" << std::endl;
             }
 
         }
@@ -286,7 +278,7 @@ namespace Escapement {
 
         do {
 
-            cout << "*** Sychronizing Files ***" << endl;
+            std::cout << "*** Sychronizing Files ***" << std::endl;
 
             // Connect to server
 
@@ -298,13 +290,13 @@ namespace Escapement {
 
                 // Get local and remote file information for synchronise
 
-                cout << "*** Getting local/remote file lists... ***" << endl;
+                std::cout << "*** Getting local/remote file lists... ***" << std::endl;
 
                 loadFilesBeforeSynchronise(runContext);
 
                 // PASS 1) Copy new/updated files to server
 
-                cout << "*** Determining new/updated file list..***" << endl;
+                std::cout << "*** Determining new/updated file list..***" << std::endl;
 
                 for (auto &file : runContext.localFiles) {
                     auto remoteFile = runContext.remoteFiles.find(convertFilePath(runContext.optionData, file.first));
@@ -316,13 +308,13 @@ namespace Escapement {
                 // Push non empty list
 
                 if (!runContext.filesToProcess.empty()) {
-                    cout << "*** Transferring " << runContext.filesToProcess.size() << " new/updated files to server ***" << endl;
+                    std::cout << "*** Transferring " << runContext.filesToProcess.size() << " new/updated files to server ***" << std::endl;
                     pushFiles(runContext);
                 }
 
                 // PASS 2) Remove any deleted local files/directories from server and local cache
 
-                cout << "*** Determining local files deleted..***" << endl;
+                std::cout << "*** Determining local files deleted..***" << std::endl;
 
                 runContext.filesToProcess.clear();
                 for (auto &file : runContext.remoteFiles) {
@@ -334,16 +326,16 @@ namespace Escapement {
                 // Delete non empty list
 
                 if (!runContext.filesToProcess.empty()) {
-                    cout << "*** Removing " << runContext.filesToProcess.size() << " deleted local files from server ***" << endl;
+                    std::cout << "*** Removing " << runContext.filesToProcess.size() << " deleted local files from server ***" << std::endl;
                     deleteFiles(runContext);
                 }
 
                 // Report disparity in number of files
 
                 if (runContext.localFiles.size() != runContext.remoteFiles.size()) {
-                    cerr << "FTP server seems to be out of sync with local directory." << endl;
+                    std::cerr << "FTP server seems to be out of sync with local directory." << std::endl;
                     if (!runContext.ftpServer.isConnected()) {
-                        cerr << "FTP server disconnected unexpectedly." << endl;
+                        std::cerr << "FTP server disconnected unexpectedly." << std::endl;
                     }
                 }
 
@@ -355,9 +347,9 @@ namespace Escapement {
 
                 if (runContext.totalFilesProcessed) {
                     saveFilesAfterSynchronise(runContext);
-                    cout << "*** Files synchronised with server ***\n" << endl;
+                    std::cout << "*** Files synchronised with server ***\n" << std::endl;
                 } else {
-                    cout << "*** No files synchronised. ***\n" << endl;
+                    std::cout << "*** No files synchronised. ***\n" << std::endl;
                 }
 
             }
@@ -365,8 +357,8 @@ namespace Escapement {
             // Wait poll interval (pollTime == 0 then one pass)
 
             if (runContext.optionData.pollTime) {
-                cout << "*** Waiting " << runContext.optionData.pollTime << " minutes for next synchronise... ***\n" << endl;
-                this_thread::sleep_for(chrono::minutes(runContext.optionData.pollTime));
+                std::cout << "*** Waiting " << runContext.optionData.pollTime << " minutes for next synchronise... ***\n" << std::endl;
+                std::this_thread::sleep_for(std::chrono::minutes(runContext.optionData.pollTime));
                 runContext.localFiles.clear();
                 runContext.remoteFiles.clear();
                 runContext.filesToProcess.clear();
@@ -393,9 +385,9 @@ namespace Escapement {
 
             // Display run parameters
 
-            cout << "Server [" << runContext.optionData.serverName << "]" << " Port [" << runContext.optionData.serverPort << "]" << " User [" << runContext.optionData.userName << "]";
-            cout << " Remote Directory [" << runContext.optionData.remoteDirectory << "]" << " Local Directory [" << runContext.optionData.localDirectory << "]";
-            cout << " SSL [" << ((runContext.optionData.noSSL) ? "Off" : "On") << "]\n" << endl;
+            std::cout << "Server [" << runContext.optionData.serverName << "]" << " Port [" << runContext.optionData.serverPort << "]" << " User [" << runContext.optionData.userName << "]";
+            std::cout << " Remote Directory [" << runContext.optionData.remoteDirectory << "]" << " Local Directory [" << runContext.optionData.localDirectory << "]";
+            std::cout << " SSL [" << ((runContext.optionData.noSSL) ? "Off" : "On") << "]\n" << std::endl;
 
             switch (runContext.optionData.command) {
                 case kEscapementSynchronise:
@@ -412,10 +404,10 @@ namespace Escapement {
 
         } catch (const CFTP::Exception &e) {
             exitWithError(e.what());
-        } catch (const boost::filesystem::filesystem_error & e) {
-            exitWithError(string("BOOST file system exception occured: [") + e.what() + "]");
-        } catch (const exception &e) {
-            exitWithError(string("Standard exception occured: [") + e.what() + "]");
+        } catch (const CFile::Exception &e) {
+            exitWithError(e.what());
+        } catch (const std::exception &e) {
+            exitWithError(std::string("Standard exception occured: [") + e.what() + "]");
         }
 
     }

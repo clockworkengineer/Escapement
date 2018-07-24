@@ -18,6 +18,7 @@
 // Dependencies: 
 // 
 // C11++              : Use of C11++ features.
+// Antik Classes      : CFTP.
 // Misc.              : Lohmann JSON library
 //
 
@@ -31,6 +32,12 @@
 
 #include <iostream>
 #include <fstream>
+
+//
+// Antik Classes
+//
+
+#include "CFTP.hpp"
 
 //
 // Escapement File cache
@@ -51,8 +58,6 @@ namespace Escapement_FileCache {
     // =======
     // IMPORTS
     // =======
-
-    using namespace std;
     
     using namespace Escapement;
             
@@ -73,7 +78,7 @@ namespace Escapement_FileCache {
 
         if (optionData.override) {
 
-            ifstream jsonFileCacheStream{ optionData.fileCache};
+            std::ifstream jsonFileCacheStream{ optionData.fileCache};
 
             if (jsonFileCacheStream) {
 
@@ -107,7 +112,7 @@ namespace Escapement_FileCache {
             json fileArray = json::array();
             json completeJSONFile;
 
-            ifstream jsonFileCacheStream { runContext.optionData.fileCache };
+            std::ifstream jsonFileCacheStream { runContext.optionData.fileCache };
 
             if (jsonFileCacheStream) {
 
@@ -119,7 +124,7 @@ namespace Escapement_FileCache {
                 if (findFiles != completeJSONFile.end()) {
                     fileArray = findFiles.value();
                     for (auto file : fileArray) {
-                        runContext.remoteFiles[file["Filename"]] = static_cast<CFTP::DateTime> (file["Modified"].get<string>());
+                        runContext.remoteFiles[file["Filename"]] = static_cast<CFTP::DateTime> (file["Modified"].get<std::string>());
                     }
                 }
 
@@ -153,7 +158,7 @@ namespace Escapement_FileCache {
             for (auto file : runContext.remoteFiles) {
                 json fileJSON;
                 fileJSON["Filename"] = file.first;
-                fileJSON["Modified"] = static_cast<string> (file.second);
+                fileJSON["Modified"] = static_cast<std::string> (file.second);
                 fileArray.push_back(fileJSON);
             }
 
@@ -163,16 +168,16 @@ namespace Escapement_FileCache {
             for (auto file : runContext.localFiles) {
                 json fileJSON;
                 fileJSON["Filename"] = file.first;
-                fileJSON["Modified"] = static_cast<string> (file.second);
+                fileJSON["Modified"] = static_cast<std::string> (file.second);
                 fileArray.push_back(fileJSON);
             }
 
             completeJSONFile["LocalFiles"] = fileArray;
 
-            ofstream jsonFileCacheStream(runContext.optionData.fileCache);
+            std::ofstream jsonFileCacheStream(runContext.optionData.fileCache);
 
             if (jsonFileCacheStream) {
-                jsonFileCacheStream << setw(4) << completeJSONFile << endl;
+                jsonFileCacheStream << std::setw(4) << completeJSONFile << std::endl;
             }
 
         }

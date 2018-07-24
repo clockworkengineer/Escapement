@@ -18,7 +18,8 @@
 // Dependencies: 
 // 
 // C11++              : Use of C11++ features.
-// Boost              : File system, program option,.
+// Antik Classes      : CPath, CFile. 
+// Boost              : Program options.
 //
 
 // =============
@@ -32,6 +33,13 @@
 #include <iostream>
 
 //
+// Antik Classes
+//
+
+#include "CFile.hpp"
+#include "CPath.hpp"
+
+//
 // Escapement command line
 //
 
@@ -39,11 +47,10 @@
 #include "Escapement_FileCache.hpp"
 
 //
-// Boost file system & program options
+// Boost program options
 //
 
 #include "boost/program_options.hpp" 
-#include <boost/filesystem.hpp>
 
 // =========
 // NAMESPACE
@@ -54,14 +61,13 @@ namespace Escapement_CommandLine {
     // =======
     // IMPORTS
     // =======
-
-    using namespace std;
     
+    using namespace Antik::File;
+       
     using namespace Escapement;
     using namespace Escapement_FileCache;
     
     namespace po = boost::program_options;
-    namespace fs = boost::filesystem;
 
     // ===============
     // LOCAL FUNCTIONS
@@ -129,8 +135,8 @@ namespace Escapement_CommandLine {
             }
 
             if (vm.count("config")) {
-                if (fs::exists(vm["config"].as<std::string>().c_str())) {
-                    std::ifstream ifs{vm["config"].as<std::string>().c_str()};
+                if (CFile::exists(vm["config"].as<std::string>())) {
+                    std::ifstream ifs{vm["config"].as<std::string>()};
                     if (ifs) {
                         po::store(po::parse_config_file(ifs, configFile), vm);
                     }

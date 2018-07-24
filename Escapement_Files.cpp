@@ -18,6 +18,7 @@
 // Dependencies: 
 // 
 // C11++              : Use of C11++ features.
+// Antik Classes      : CFile, CPath.
 // Misc.              : Lohmann JSON library
 //
 
@@ -36,6 +37,8 @@
 //
 
 #include "FTPUtil.hpp"
+#include "CFile.hpp"
+#include "CPath.hpp"
 
 //
 // Escapement File cache
@@ -43,12 +46,6 @@
 
 #include "Escapement_FileCache.hpp"
 #include "Escapement_Files.hpp"
-
-//
-// Boost file system library
-//
-
-#include <boost/filesystem.hpp>
 
 // Lohmann JSON library
 
@@ -63,8 +60,6 @@ namespace Escapement_Files {
     // =======
     // IMPORTS
     // =======
-
-    using namespace std;
     
     using namespace Escapement;
     using namespace Escapement_FileCache;
@@ -72,8 +67,7 @@ namespace Escapement_Files {
     
     using namespace Antik;
     using namespace Antik::FTP;
-   
-    namespace fs = boost::filesystem;
+    using namespace Antik::File;
 
     // ===============
     // LOCAL FUNCTIONS
@@ -83,7 +77,7 @@ namespace Escapement_Files {
     // Return true if file is remote
     //
 
-    static inline bool isRemoteFile(const EscapementOptions &optionData, const string &filePath) {
+    static bool isRemoteFile(const EscapementOptions &optionData, const std::string &filePath) {
         return (filePath.find(optionData.remoteDirectory) == 0);
     }
 
@@ -91,7 +85,7 @@ namespace Escapement_Files {
     // Return true if file is local
     //
     
-    static inline bool isLocalFile(const EscapementOptions &optionData, const string &filePath) {
+    static bool isLocalFile(const EscapementOptions &optionData, const std::string &filePath) {
         return (filePath.find(optionData.localDirectory) == 0);
     }
        
@@ -122,11 +116,11 @@ namespace Escapement_Files {
         FileInfoMap fileInfoMap;
 
           for (auto file : fileList) {
-             if (fs::is_regular_file(file)) {
+             if (CFile::isFile(file)) {
                 time_t localModifiedTime{ 0};
-                localModifiedTime = fs::last_write_time(file);
+                localModifiedTime = CFile::lastWriteTime(file);
                 fileInfoMap[file] = static_cast<CFTP::DateTime> (localtime(&localModifiedTime));
-            } else if (fs::is_directory(file)) { 
+            } else if (CFile::isDirectory(file)) { 
                 fileInfoMap[file] = CFTP::DateTime();
             }
         }
@@ -143,9 +137,9 @@ namespace Escapement_Files {
     // Convert file path to/from local/remote.
     //
 
-    string convertFilePath(const EscapementOptions &optionData, const string &filePath) {
+    std::string convertFilePath(const EscapementOptions &optionData, const std::string &filePath) {
         
-        fs::path convertedPath;
+        CPath convertedPath;
         
         if (isLocalFile(optionData, filePath)) {
             convertedPath = optionData.remoteDirectory + Antik::kServerPathSep + filePath.substr(optionData.localDirectory.size());
@@ -155,7 +149,9 @@ namespace Escapement_Files {
             std::cerr << "Error: Cannot convert file path " << filePath << std::endl;
         }
         
-        return (convertedPath.normalize().string());
+        convertedPath.normalize();
+        
+        return(convertedPath.toString());
                    
     }
     
@@ -172,7 +168,7 @@ namespace Escapement_Files {
         runContext.remoteFiles = getRemoteFileListDateTime(runContext.ftpServer, fileList);
 
         if (runContext.remoteFiles.empty()) {
-            cout << "*** Remote server directory empty ***" << endl;
+            std::cout << "*** Remote server directory empty ***" << std::endl;
         }
 
     }
@@ -189,7 +185,7 @@ namespace Escapement_Files {
         runContext.localFiles = getLocalFileListDateTime(fileList);
 
         if (runContext.localFiles.empty()) {
-            cout << "*** Local directory empty ***" << endl;
+            std::cout << "*** Local directory empty ***" << std::endl;
         }
 
     }
@@ -205,7 +201,7 @@ namespace Escapement_Files {
         
         if (!runContext.filesToProcess.empty()) {
 
-            sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // getFiles() requires list to be sorted
+            std::sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // getFiles() requires list to be sorted
             
             FileList successList { getFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn, true) };
             
@@ -221,7 +217,7 @@ namespace Escapement_Files {
             if (runContext.filesToProcess.size() != filesTransfered.size()) {
                 for (auto file : runContext.filesToProcess) {
                     if (!filesTransfered.count(convertFilePath(runContext.optionData, file))) {
-                        cout << "File [" << file << "] not transferred/created." << std::endl;                  
+                        std::cout << "File [" << file << "] not transferred/created." << std::endl;                  
                     }
                 }
             }
@@ -241,14 +237,14 @@ namespace Escapement_Files {
                
         if (!runContext.filesToProcess.empty()) {
             
-            sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // Putfiles() requires list to be sorted
+            std::sort(runContext.filesToProcess.begin(), runContext.filesToProcess.end()); // Putfiles() requires list to be sorted
             
             FileList successList {  putFiles(runContext.ftpServer, runContext.optionData.localDirectory, runContext.filesToProcess, completionFn, true) };
 
             FileInfoMap filesTransfered { getRemoteFileListDateTime(runContext.ftpServer, successList ) };
      
             if (!filesTransfered.empty()) {
-                cout << "Number of files to transfer [" << filesTransfered.size() << "]" << endl;
+                std::cout << "Number of files to transfer [" << filesTransfered.size() << "]" << std::endl;
                 for (auto &file : filesTransfered) {
                     runContext.remoteFiles[file.first] = file.second;
                 }
@@ -258,7 +254,7 @@ namespace Escapement_Files {
             if (runContext.filesToProcess.size() != filesTransfered.size()) {
                 for (auto file : runContext.filesToProcess) {
                     if (!filesTransfered.count(convertFilePath(runContext.optionData, file))) {
-                        cout << "File [" << file << "] not transferred/created." << std::endl;
+                        std::cout << "File [" << file << "] not transferred/created." << std::endl;
                     }
                 }
             }
@@ -281,15 +277,15 @@ namespace Escapement_Files {
 
             for (auto &file : runContext.filesToProcess) {
                 if (runContext.ftpServer.deleteFile(file) == 250) {
-                    cout << "File [" << file << " ] removed from server." << endl;
+                    std::cout << "File [" << file << " ] removed from server." << std::endl;
                     runContext.remoteFiles.erase(file);
                     runContext.totalFilesProcessed++;
                 } else if (runContext.ftpServer.removeDirectory(file) == 250) {
-                    cout << "Directory [" << file << " ] removed from server." << endl;
+                    std::cout << "Directory [" << file << " ] removed from server." << std::endl;
                     runContext.remoteFiles.erase(file);
                     runContext.totalFilesProcessed++;
                 } else {
-                    cerr << "File [" << file << " ] could not be removed from server." << endl;
+                    std::cerr << "File [" << file << " ] could not be removed from server." << std::endl;
                 }
             }
 
