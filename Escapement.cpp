@@ -400,14 +400,8 @@ namespace Escapement {
                     refreshFileCache(runContext);
                     break;
             }
-
-
-        } catch (const CFTP::Exception &e) {
-            exitWithError(e.what());
-        } catch (const CFile::Exception &e) {
-            exitWithError(e.what());
         } catch (const std::exception &e) {
-            exitWithError(std::string("Standard exception occured: [") + e.what() + "]");
+            exitWithError(e.what());
         }
 
     }
