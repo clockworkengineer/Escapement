@@ -89,6 +89,7 @@ ${OBJECTDIR}/Escapement_Files.o: Escapement_Files.cpp
 
 # Subprojects
 .build-subprojects:
+	cd ../Antik && ${MAKE}  -f Makefile CONF=Release
 
 # Clean Targets
 .clean-conf: ${CLEAN_SUBPROJECTS}
@@ -96,6 +97,7 @@ ${OBJECTDIR}/Escapement_Files.o: Escapement_Files.cpp
 
 # Subprojects
 .clean-subprojects:
+	cd ../Antik && ${MAKE}  -f Makefile CONF=Release clean
 
 # Enable dependency checking
 .dep.inc: .depcheck-impl
