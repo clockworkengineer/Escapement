@@ -45,8 +45,8 @@ OBJECTFILES= \
 CFLAGS=
 
 # CC Compiler Flags
-CCFLAGS=
-CXXFLAGS=
+CCFLAGS=-Wall -Werror -std=c++17
+CXXFLAGS=-Wall -Werror -std=c++17
 
 # Fortran Compiler Flags
 FFLAGS=
@@ -70,22 +70,22 @@ ${CND_DISTDIR}/${CND_CONF}/${CND_PLATFORM}/escapement: ${OBJECTFILES}
 ${OBJECTDIR}/Escapement.o: Escapement.cpp
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl` -std=c++11  -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement.o Escapement.cpp
+	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement.o Escapement.cpp
 
 ${OBJECTDIR}/Escapement_CommandLine.o: Escapement_CommandLine.cpp
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl` -std=c++11  -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_CommandLine.o Escapement_CommandLine.cpp
+	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_CommandLine.o Escapement_CommandLine.cpp
 
 ${OBJECTDIR}/Escapement_FileCache.o: Escapement_FileCache.cpp
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl` -std=c++11  -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_FileCache.o Escapement_FileCache.cpp
+	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_FileCache.o Escapement_FileCache.cpp
 
 ${OBJECTDIR}/Escapement_Files.o: Escapement_Files.cpp
 	${MKDIR} -p ${OBJECTDIR}
 	${RM} "$@.d"
-	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl` -std=c++11  -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_Files.o Escapement_Files.cpp
+	$(COMPILE.cc) -g -I../Antik/include -I../Antik/classes/implementation `pkg-config --cflags libcurl` `pkg-config --cflags zlib` `pkg-config --cflags openssl`   -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/Escapement_Files.o Escapement_Files.cpp
 
 # Subprojects
 .build-subprojects:

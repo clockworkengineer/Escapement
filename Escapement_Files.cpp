@@ -103,7 +103,7 @@ namespace Escapement_Files {
             fileInfoMap[file] = modifiedDateTime;
         }
 
-        return (std::move(fileInfoMap));
+        return (fileInfoMap);
 
     }
     
@@ -125,7 +125,7 @@ namespace Escapement_Files {
             }
         }
 
-        return (std::move(fileInfoMap));
+        return (fileInfoMap);
 
     }
     
