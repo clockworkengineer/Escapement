@@ -7,21 +7,21 @@ CND_BASEDIR=`pwd`
 CND_BUILDDIR=build
 CND_DISTDIR=dist
 # Debug configuration
-CND_PLATFORM_Debug=GNU-Linux
-CND_ARTIFACT_DIR_Debug=dist/Debug/GNU-Linux
+CND_PLATFORM_Debug=CLang-Linux
+CND_ARTIFACT_DIR_Debug=dist/Debug/CLang-Linux
 CND_ARTIFACT_NAME_Debug=escapement
-CND_ARTIFACT_PATH_Debug=dist/Debug/GNU-Linux/escapement
-CND_PACKAGE_DIR_Debug=dist/Debug/GNU-Linux/package
+CND_ARTIFACT_PATH_Debug=dist/Debug/CLang-Linux/escapement
+CND_PACKAGE_DIR_Debug=dist/Debug/CLang-Linux/package
 CND_PACKAGE_NAME_Debug=escapement.tar
-CND_PACKAGE_PATH_Debug=dist/Debug/GNU-Linux/package/escapement.tar
+CND_PACKAGE_PATH_Debug=dist/Debug/CLang-Linux/package/escapement.tar
 # Release configuration
-CND_PLATFORM_Release=GNU-Linux
-CND_ARTIFACT_DIR_Release=dist/Release/GNU-Linux
+CND_PLATFORM_Release=CLang-Linux
+CND_ARTIFACT_DIR_Release=dist/Release/CLang-Linux
 CND_ARTIFACT_NAME_Release=escapement
-CND_ARTIFACT_PATH_Release=dist/Release/GNU-Linux/escapement
-CND_PACKAGE_DIR_Release=dist/Release/GNU-Linux/package
+CND_ARTIFACT_PATH_Release=dist/Release/CLang-Linux/escapement
+CND_PACKAGE_DIR_Release=dist/Release/CLang-Linux/package
 CND_PACKAGE_NAME_Release=escapement.tar
-CND_PACKAGE_PATH_Release=dist/Release/GNU-Linux/package/escapement.tar
+CND_PACKAGE_PATH_Release=dist/Release/CLang-Linux/package/escapement.tar
 #
 # include compiler specific variables
 #
