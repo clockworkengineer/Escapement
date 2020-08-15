@@ -1,14 +1,3 @@
-/*
- * File:   Escapement.hpp
- * 
- * Author: Robert Tizzard
- *
- * Created on October 24, 2017, 2:33 PM
- * 
- * Copyright 2017.
- * 
- */
-
 #ifndef ESCAPEMENT_HPP
 #define ESCAPEMENT_HPP
 
